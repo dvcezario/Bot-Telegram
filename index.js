@@ -1,5 +1,8 @@
 // index.js
-
+require('dotenv').config();
+const token = process.env.TOKEN;
+const apiUrl = process.env.API_URL.replace('${TOKEN}', token);
+const apiFileUrl = process.env.API_FILE_URL.replace('${TOKEN}', token);
 const { Markup } = require('telegraf');
 const bot = require('./bot');
 const resultados = require('./resultados')

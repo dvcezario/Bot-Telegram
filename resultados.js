@@ -2,8 +2,11 @@ const { Markup } = require('telegraf');
 const axios = require('axios');
 const bot = require('./bot');
 const telaInicial = require('./telaInicial'); // Importe a função de apresentar a tela inicial
+// Importa o array para armazrenar os IDs das mensagens
+const { mensagensIDS } = require('./telaInicial');
 
 let ultimoConcursoConsultado; // Variável para armazenar o número do último concurso consultado
+
 
 async function obterUltimoResultado() {
     try {
@@ -29,6 +32,10 @@ async function apresentarTodosResultados(ctx) {
 
     ctx.editMessageCaption('Informações sobre o concurso:');
     ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
+    if (ctx.message) {
+        mensagensIDS.push(ctx.message.message_id);
+    }
+    console.log('MensagensIDS', mensagensIDS);
 }
 
 async function apresentarResultadoAnterior(ctx) {
@@ -67,11 +74,32 @@ async function apresentarResultadoProximo(ctx) {
 
 // Função para buscar resultado por concurso
 async function buscarResultadoPorConcurso(ctx) {
-    ctx.editMessageText('Por favor, digite o número do concurso:');
+    let message;
+    if (ctx.callbackQuery.message.text) {
+        message = await ctx.editMessageText('Por favor, digite o número do concurso:');
+    } else if (ctx.callbackQuery.message.photo) {
+        message = await ctx.editMessageCaption('Por favor, digite o número do concurso:');
+    }
     bot.on('text', textListener);
+    if (message) {
+        mensagensIDS.push(message.message_id);
+    }
+    console.log('MensagensIDS', mensagensIDS);
 }
 
-let textListener = async (ctx) => {
+async function obterResultadoPorConcurso(numeroConcurso) {
+    // Implemente a lógica para obter o resultado do concurso aqui.
+    // Esta é apenas uma função de exemplo e pode não funcionar corretamente sem ajustes.
+    try {
+        const resultado = await lotofacil.getResultsByNumber(numeroConcurso);
+        return resultado;
+    } catch (error) {
+        console.error('Erro ao obter resultados do concurso:', error);
+        return null;
+    }
+}
+
+async function textListener(ctx) {
     const numeroConcurso = parseInt(ctx.message.text.trim(), 10);
     const resultado = await obterResultadoPorConcurso(numeroConcurso);
     if (!resultado) {
@@ -84,7 +112,6 @@ let textListener = async (ctx) => {
     const formattedResult = formatarResultado(resultado);
     const buttons = criarBotoesPadrao();
     ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
-    textListener = null;
 };
 
 bot.action('resultado_anterior', apresentarResultadoAnterior);
@@ -138,4 +165,9 @@ module.exports = {
     apresentarResultadoProximo,
     obterUltimoResultado,
     obterResultadoPorConcurso,
+    buscarResultadoPorConcurso,
+    criarBotoesPadrao,
+    formatarResultado,
+    ultimoConcursoConsultado,
+    mensagensIDS
 };
