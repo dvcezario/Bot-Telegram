@@ -1,0 +1,29 @@
+{
+  "name": "curso_bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "audit": "^0.0.6",
+    "axios": "^1.6.8",
+    "body-parser": "^1.20.2",
+    "cheerio": "^1.0.0-rc.12",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mercadopago": "^2.0.8",
+    "node-telegram-bot-api": "^0.65.1",
+    "openai": "^4.0.0",
+    "path": "^0.12.7",
+    "qrcode": "^1.5.3",
+    "telegraf": "^4.16.3",
+    "validator": "^13.11.0",
+    "xlsx": "^0.18.5"
+  }
+}
