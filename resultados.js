@@ -31,9 +31,12 @@ async function apresentarTodosResultados(ctx) {
     const buttons = criarBotoesPadrao();
 
     ctx.editMessageCaption('Informações sobre o concurso:');
-    ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
+    const salvarId = await ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
     if (ctx.message) {
         mensagensIDS.push(ctx.message.message_id);
+    }
+    if (salvarId) {
+        mensagensIDS.push(salvarId.message_id);
     }
     console.log('MensagensIDS', mensagensIDS);
 }
@@ -41,35 +44,55 @@ async function apresentarTodosResultados(ctx) {
 async function apresentarResultadoAnterior(ctx) {
     if (!ultimoConcursoConsultado) {
         const buttons = criarBotoesPadrao();
-        ctx.replyWithMarkdown('Não existe concurso anterior.', Markup.inlineKeyboard(buttons));
+        const salvarID5 = await ctx.replyWithMarkdown('Não existe concurso anterior.', Markup.inlineKeyboard(buttons));
+        if (salvarID5) {
+            mensagensIDS.push(salvarID5.message_id);
+        }
+        console.log('MensagensIDS', mensagensIDS);
         return;
     }
 
     const resultadoAnterior = await obterResultadoPorConcurso(ultimoConcursoConsultado - 1);
     if (!resultadoAnterior) {
         const buttons = criarBotoesPadrao();
-        ctx.replyWithMarkdown('Não existe concurso anterior.', Markup.inlineKeyboard(buttons));
+        const salvarId4 = await ctx.replyWithMarkdown('Não existe concurso anterior.', Markup.inlineKeyboard(buttons));
+        if (salvarId4) {
+            mensagensIDS.push(salvarId4.message_id);
+        }
+        console.log('MensagensIDS', mensagensIDS);
         return;
     }
 
     ultimoConcursoConsultado--;
     const formattedResult = formatarResultado(resultadoAnterior);
     const buttons = criarBotoesPadrao();
-    ctx.editMessageText(formattedResult, Markup.inlineKeyboard(buttons));
+    const salvarID3 = await ctx.editMessageText(formattedResult, Markup.inlineKeyboard(buttons));
+    if (salvarID3) {
+        mensagensIDS.push(salvarID3.message_id);
+    }
+    console.log('MensagensIDS', mensagensIDS);
 }
 
 async function apresentarResultadoProximo(ctx) {
     const proximoResultado = await obterResultadoPorConcurso(ultimoConcursoConsultado + 1);
     if (!proximoResultado) {
         const buttons = criarBotoesPadrao();
-        ctx.editMessageText(`O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`, Markup.inlineKeyboard(buttons));
+        const salvarID = await ctx.editMessageText(`O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`, Markup.inlineKeyboard(buttons));
+        if (salvarID) {
+            mensagensIDS.push(salvarID.message_id);
+        }
+        console.log('MensagensIDS', mensagensIDS);
         return;
     }
 
     ultimoConcursoConsultado++;
     const formattedResult = formatarResultado(proximoResultado);
     const buttons = criarBotoesPadrao();
-    ctx.editMessageText(formattedResult, Markup.inlineKeyboard(buttons));
+    const salvarId2 = ctx.editMessageText(formattedResult, Markup.inlineKeyboard(buttons));
+    if (salvarId2) {
+        mensagensIDS.push(salvarId2.message_id);
+    }
+    console.log('MensagensIDS', mensagensIDS);
 }
 
 // Função para buscar resultado por concurso
@@ -92,7 +115,11 @@ async function buscarResultadoPorConcurso(ctx) {
     const resultado = await obterResultadoPorConcurso(numeroConcurso);
     if (!resultado) {
         const buttons = criarBotoesPadrao();
-        ctx.replyWithMarkdown('Resultado não encontrado para o concurso informado.', Markup.inlineKeyboard(buttons));
+        const salvarID = await ctx.replyWithMarkdown('Resultado não encontrado para o concurso informado.', Markup.inlineKeyboard(buttons));
+        if (salvarID) {
+            mensagensIDS.push(salvarID.message_id);
+        }
+        console.log('MensagensIDS', mensagensIDS);
         return;
     }
 
