@@ -61,8 +61,7 @@ bot.action('voltar', async (ctx) => {
     mensagensIDS.forEach(async (messageId) => {
         try {
             await ctx.deleteMessage(messageId);
-        } catch (error) {
-            console.error(`FALHA AO DELETAR A MENSAGEM COM O ID: ${messageId}:`, error);
+        } catch {
         }
     });
 
