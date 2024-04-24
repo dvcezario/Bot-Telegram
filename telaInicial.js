@@ -1,6 +1,5 @@
 const { Markup } = require('telegraf'); // Importe o Markup do Telegraf
 const bot = require('./bot'); // Importe o bot aqui para evitar circularidade
-
 const MENU_INICIAL = 'menu_inicial';
 
 /**
@@ -159,5 +158,7 @@ async function deleteAllMessages(ctx) {
 module.exports = {
     apresentarTelaInicial,
     MENU_INICIAL,
-    mensagensIDS
+    deleteCurrentMessage,
+    deleteAllMessages,
+    mensagensIDS,
 };
