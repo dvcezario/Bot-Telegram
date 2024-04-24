@@ -8,7 +8,7 @@ const { Markup } = require('telegraf');
 const bot = require('./bot');
 const axios = require('axios');
 const crypto = require('crypto');
-const { mensagensIDS } = require('./telaInicial');
+const { mensagensIDS, deleteAllMessages } = require('./telaInicial');
 
 let selectedNumbers = [];
 let userPhoneNumber = ''; // Variável global para armazenar o número de telefone
@@ -124,6 +124,7 @@ bot.action('confirmar_Numeros', async (ctx) => {
             await salvarNumerosSelecionados(selectedNumbers, ctx);
             const { id, qrCodeData, qrCodeBase64 } = await gerarQRCodePix();
             await inserirIDPagamentoNaPlanilha(id);
+            deleteAllMessages(ctx);
             const salvarId1 = await ctx.reply('PIX Gerado com Sucesso\n\n📸 Aponte a Camera do seu celular para ler QR-Code\n\n💰 Valor da Cota R$25,00\n\n⏰ Este pagamento ficará disponível por 40 minutos\n');
             const salvarId2 = await ctx.replyWithPhoto({ source: Buffer.from(qrCodeBase64, 'base64') });
             const salvarId3 = await ctx.reply('\n💠💠 PIX Copia e Cola 👇👇\n');
@@ -296,5 +297,6 @@ module.exports = {
     salvarNumerosSelecionados,
     validatePhoneNumber,
     gerarQRCodePix,
-    inserirIDPagamentoNaPlanilha
+    inserirIDPagamentoNaPlanilha,
+    deleteAllMessages
 };

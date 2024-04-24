@@ -21,7 +21,6 @@ async function apresentarTelaInicial(ctx) {
                 console.log('Não tem legenda No If');
                 console.log('MensagensIDS', mensagensIDS);
                 try {
-                    deleteCurrentMessage(ctx);
                     deleteAllMessages(ctx);
                 }
                 catch (error) {
@@ -114,25 +113,6 @@ async function apresentarTelaInicial(ctx) {
     }
 }
 
-async function deleteCurrentMessage(ctx) {
-    try {
-        // Verifique se ctx.callbackQuery.message é definido
-        if (!ctx.callbackQuery || !ctx.callbackQuery.message) {
-            console.log('ctx.callbackQuery.message não está definido');
-            return;
-        }
-
-        // Obtenha o chat_id e o message_id do contexto
-        const chatId = ctx.callbackQuery.message.chat.id;
-        const messageId = ctx.callbackQuery.message.message_id;
-
-        // Exclua a mensagem atual
-        await ctx.telegram.deleteMessage(chatId, messageId);
-    } catch (error) {
-        console.error('Erro ao excluir a mensagem:', error);
-    }
-}
-
 async function deleteAllMessages(ctx) {
     // Remove todos os elementos undefined de mensagensIDS
     mensagensIDS = mensagensIDS.filter(item => item !== undefined);
@@ -147,8 +127,7 @@ async function deleteAllMessages(ctx) {
                 // Remove o message_id de mensagensIDS
                 mensagensIDS.splice(i, 1);
             }
-        } catch (error) {
-            console.error('Erro ao excluir todas as mensagens', error);
+        } catch {
         }
     } else {
         console.log('Não há mensagens para excluir');
@@ -158,7 +137,6 @@ async function deleteAllMessages(ctx) {
 module.exports = {
     apresentarTelaInicial,
     MENU_INICIAL,
-    deleteCurrentMessage,
     deleteAllMessages,
     mensagensIDS,
 };
