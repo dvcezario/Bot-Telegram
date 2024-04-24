@@ -1,6 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const QRCode = require('qrcode');
 const fs = require('fs');
+const { mensagensIDS } = require('./telaInicial');
 
 // Token do seu bot do Telegram
 const token = '6828499806:AAEi1hcYkbX1u2qdq-d0CgmhWno3_5_rurE';
@@ -46,7 +47,23 @@ bot.onText(/\/start/, async (msg) => {
         await generateQRCode(qrcodedata, qrImagePath);
 
         // Envie a imagem do QR code para o usuário
-        await bot.sendPhoto(chatId, qrImagePath);
+        const qrImagem = await bot.sendPhoto(chatId, qrImagePath);
+        if (qrImagem){
+            mensagensIDS.push(qrImagem.message_id);
+        }
+
+        // Botão Menu Inicial para voltar
+        const menuInicial = '🏠 Menu Inicial';
+        const btnVoltar = {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: menuInicial, callback_data: 'voltar' }
+                    ]
+                ]
+            }
+        };
+
 
         // Remova a imagem temporária do QR code
         fs.unlinkSync(qrImagePath);

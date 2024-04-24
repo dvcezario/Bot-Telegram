@@ -43,7 +43,8 @@ bot.on('text', async (msg) => { // Torna a função de callback assíncrona
         }
         console.log('Keyboard',mensagensIDS);
     } else {
-        const salvarId = await ctx.reply('Número inválido. Por favor, digite um número válido.');
+        const salvarId = await ctx.reply('Número inválido. Por favor, digite um número válido.', { reply_markup: { inline_keyboard: [[voltarButton]] } });
+        const voltarButton = { text: '🏠 Menu Inicial', callback_data: 'voltar' }; // Cria o botão de voltar
         if(salvarId){
             mensagensIDS.push(salvarId.message_id);
         }
@@ -119,14 +120,22 @@ bot.action('confirmar', async (ctx) => { // Adicione async aqui para poder usar 
 
 bot.action('confirmar_Numeros', async (ctx) => {
     if (selectedNumbers.length === 10) {
-        try {
+        try { 
             await salvarNumerosSelecionados(selectedNumbers, ctx);
             const { id, qrCodeData, qrCodeBase64 } = await gerarQRCodePix();
             await inserirIDPagamentoNaPlanilha(id);
-            await ctx.reply('PIX Gerado com Sucesso\n\n📸 Aponte a Camera do seu celular para ler QR-Code\n\n💰 Valor da Cota R$25,00\n\n⏰ Este pagamento ficará disponível por 40 minutos\n');
-            await ctx.replyWithPhoto({ source: Buffer.from(qrCodeBase64, 'base64') });
-            await ctx.reply('\n💠💠 PIX Copia e Cola 👇👇\n');
-            await ctx.reply('\n' + qrCodeData);
+            const salvarId1 = await ctx.reply('PIX Gerado com Sucesso\n\n📸 Aponte a Camera do seu celular para ler QR-Code\n\n💰 Valor da Cota R$25,00\n\n⏰ Este pagamento ficará disponível por 40 minutos\n');
+            const salvarId2 = await ctx.replyWithPhoto({ source: Buffer.from(qrCodeBase64, 'base64') });
+            const salvarId3 = await ctx.reply('\n💠💠 PIX Copia e Cola 👇👇\n');
+            const voltarButton = { text: '🏠 Menu Inicial', callback_data: 'voltar' }; // Cria o botão de voltar
+            const salvarId4 = await ctx.reply('\n' + qrCodeData, { reply_markup: { inline_keyboard: [[voltarButton]] } }); // Envia o botão de voltar);
+            if(salvarId1 && salvarId2 && salvarId3 && salvarId4){
+                mensagensIDS.push(salvarId1.message_id);
+                mensagensIDS.push(salvarId2.message_id);
+                mensagensIDS.push(salvarId3.message_id);
+                mensagensIDS.push(salvarId4.message_id);
+            }
+            console.log('MensagensIDS',mensagensIDS);
 
         } catch (error) {
             console.error('Erro ao processar ação confirmar_Numeros:', error);
@@ -158,6 +167,7 @@ async function gerarQRCodePix() {
             }
         };
 
+        // PUXA DO .ENV
         const accessToken = process.env.accessToken;
 
         const response = await axios.post('https://api.mercadopago.com/v1/payments', paymentData, {
