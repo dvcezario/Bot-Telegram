@@ -43,8 +43,8 @@ bot.on('text', async (msg) => { // Torna a função de callback assíncrona
         }
         console.log('Keyboard',mensagensIDS);
     } else {
-        const salvarId = await ctx.reply('Número inválido. Por favor, digite um número válido.', { reply_markup: { inline_keyboard: [[voltarButton]] } });
         const voltarButton = { text: '🏠 Menu Inicial', callback_data: 'voltar' }; // Cria o botão de voltar
+        const salvarId = await ctx.reply('Número inválido. Por favor, digite um número válido.', { reply_markup: { inline_keyboard: [[voltarButton]] } });
         if(salvarId){
             mensagensIDS.push(salvarId.message_id);
         }
