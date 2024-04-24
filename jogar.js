@@ -2,12 +2,13 @@
 
 const { Markup } = require('telegraf');
 const path = require('path');
+const { mensagensIDS } = require('./telaInicial');
 
 // Função para apresentar o submenu "Acerto Acumulado"
-function apresentarSubMenuAcertoAcumulado(ctx) {
+async function apresentarSubMenuAcertoAcumulado(ctx) {
     menuState = MENU_ACERTO_ACUMULADO;
     if (ctx.callbackQuery) {
-        ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
+        const salvarId = await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
             reply_markup: {
                 inline_keyboard: [
                     [
@@ -25,6 +26,7 @@ function apresentarSubMenuAcertoAcumulado(ctx) {
                 ]
             }
         });
+        mensagensIDS.push(salvarId.message_id);
     } else {
         apresentarTelaInicial(ctx);
     }
@@ -32,16 +34,25 @@ function apresentarSubMenuAcertoAcumulado(ctx) {
 
 async function apresentarPremiacoes(ctx) {
     const premiacoesPath = path.join(__dirname, 'Premiacoes.pdf');
-    ctx.replyWithDocument({ source: premiacoesPath });
+    const salvarId = await ctx.replyWithDocument({ source: premiacoesPath });
+    if (salvarId) {
+        mensagensIDS.push(salvarId.message_id);
+    }
+    mensagensIDS.push(salvarId.message_id);
 }
 
 async function apresentarPlanilhaJogadores(ctx) {
     const planilhaJogadoresPath = path.join(__dirname, 'PlanilhaJogadores.pdf');
-    ctx.replyWithDocument({ source: planilhaJogadoresPath });
+    const salvarId = await ctx.replyWithDocument({ source: planilhaJogadoresPath });
+    if (salvarId) {
+        mensagensIDS.push(salvarId.message_id);
+    }
+    mensagensIDS.push(salvarId.message_id);
 }
 
 
 module.exports = {
     apresentarPremiacoes,
-    apresentarPlanilhaJogadores
+    apresentarPlanilhaJogadores,
+    mensagensIDS
 };

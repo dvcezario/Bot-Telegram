@@ -8,6 +8,7 @@ const { Markup } = require('telegraf');
 const bot = require('./bot');
 const axios = require('axios');
 const crypto = require('crypto');
+const { mensagensIDS } = require('./telaInicial');
 
 let selectedNumbers = [];
 let userPhoneNumber = ''; // Variável global para armazenar o número de telefone
@@ -22,24 +23,33 @@ function isValidPhoneNumber(phoneNumber) {
 }
 
 // Função para lidar com a validação do número de telefone
-function validatePhoneNumber(ctx) {
+async function validatePhoneNumber(ctx) {
     // Pergunta ao usuário para digitar o número de telefone
-    ctx.editMessageCaption('Ficaremos felizes em entrar em contato contigo, caso seja um ganhador! Para isso, digite seu número de telefone com o DDD.');
-    
-    // Aguarda a próxima mensagem do usuário para validar o número
-    bot.on('text', (msg) => {
-        const response = msg.text.trim();
-        if (isValidPhoneNumber(response)) {
-            // Após a validação bem-sucedida, armazena o número de telefone na variável global
-            userPhoneNumber = response;
+    const salvarId = await ctx.editMessageCaption('Ficaremos felizes em entrar em contato contigo, caso seja um ganhador! Para isso, digite seu número de telefone com o DDD.');
+    mensagensIDS.push(salvarId.message_id);
 
-            // Após a validação bem-sucedida, chama a função createNumericKeyboard
-            const keyboard = createNumericKeyboard();
-            ctx.reply('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
-        } else {
-            ctx.reply('Número inválido. Por favor, digite um número válido.');
+    // Aguarda a próxima mensagem do usuário para validar o número
+bot.on('text', async (msg) => { // Torna a função de callback assíncrona
+    const response = msg.text.trim();
+    if (isValidPhoneNumber(response)) {
+        // Após a validação bem-sucedida, armazena o número de telefone na variável global
+        userPhoneNumber = response;
+
+        // Após a validação bem-sucedida, chama a função createNumericKeyboard
+        const keyboard = createNumericKeyboard();
+        const salvarId = await ctx.reply('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
+        if(salvarId){
+            mensagensIDS.push(salvarId.message_id);
         }
-    });
+        console.log('Keyboard',mensagensIDS);
+    } else {
+        const salvarId = await ctx.reply('Número inválido. Por favor, digite um número válido.');
+        if(salvarId){
+            mensagensIDS.push(salvarId.message_id);
+        }
+        console.log('MensagensIDS',mensagensIDS);
+    }
+});
 }
 
 // Função para criar o teclado numérico com 12 linhas e 5 colunas
@@ -87,15 +97,23 @@ bot.action(/^[1-9]\d*$/, (ctx) => {
 });
 
 // Função para lidar com o botão confirmar
-bot.action('confirmar', (ctx) => {
+bot.action('confirmar', async (ctx) => { // Adicione async aqui para poder usar await
     if (selectedNumbers.length === 10) {
         // Adiciona botões confirmar_Numeros e alterar_Numeros
         const confirm_NumerosButton = Markup.button.callback('Confirmar Números', 'confirmar_Numeros');
         const alterar_NumerosButton = Markup.button.callback('Alterar Números', 'alterar_Numeros');
         const keyboard = [[confirm_NumerosButton, alterar_NumerosButton]];
-        ctx.reply(`Confirme os Números Selecionados: \n${selectedNumbers.sort((a, b) => a - b).join('  ')}`, Markup.inlineKeyboard(keyboard));
+        const salvarId = await ctx.reply(`Confirme os Números Selecionados: \n${selectedNumbers.sort((a, b) => a - b).join('  ')}`, Markup.inlineKeyboard(keyboard));
+        if(salvarId && salvarId.message_id){
+            mensagensIDS.push(salvarId.message_id);
+            console.log('MensagensIDS',mensagensIDS);
+        }
     } else {
-        ctx.reply('Por favor, selecione exatamente 10 números.');
+        const salvarId = await ctx.reply('Por favor, selecione exatamente 10 números.'); // Use await aqui
+        if(salvarId && salvarId.message_id){
+            mensagensIDS.push(salvarId.message_id);
+            console.log('MensagensIDS',mensagensIDS);
+        }
     }
 });
 
@@ -112,7 +130,10 @@ bot.action('confirmar_Numeros', async (ctx) => {
 
         } catch (error) {
             console.error('Erro ao processar ação confirmar_Numeros:', error);
-            ctx.reply('Ocorreu um erro ao processar sua solicitação.');
+            const salvarId = await ctx.reply('Ocorreu um erro ao processar sua solicitação.');
+            if(salvarId){
+                mensagensIDS.push(salvarId.message_id);
+            }
         }
     } else {
         ctx.reply('Por favor, selecione exatamente 10 números antes de confirmar.');
@@ -201,7 +222,11 @@ async function inserirIDPagamentoNaPlanilha(idUnico) {
 bot.action('alterar_Numeros', async (ctx) => {
     selectedNumbers = []; // Limpar os números selecionados
     const keyboard = createNumericKeyboard(selectedNumbers);
-    ctx.editMessageText('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
+    const salvarId = await ctx.editMessageText('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
+    if(salvarId){
+        mensagensIDS.push(salvarId.message_id);
+    }
+    console.log('MensagensIDS',mensagensIDS);
 });
 
 // Função para salvar os números selecionados em uma planilha do Excel
