@@ -125,12 +125,14 @@ bot.action('confirmar_Numeros', async (ctx) => {
             const { id, qrCodeData, qrCodeBase64 } = await gerarQRCodePix();
             await inserirIDPagamentoNaPlanilha(id);
             deleteAllMessages(ctx);
+            const salvarId = await ctx.replyWithPhoto({ source: 'Logo3.jpg' });
             const salvarId1 = await ctx.reply('PIX Gerado com Sucesso\n\n📸 Aponte a Camera do seu celular para ler QR-Code\n\n💰 Valor da Cota R$25,00\n\n⏰ Este pagamento ficará disponível por 40 minutos\n');
             const salvarId2 = await ctx.replyWithPhoto({ source: Buffer.from(qrCodeBase64, 'base64') });
             const salvarId3 = await ctx.reply('\n💠💠 PIX Copia e Cola 👇👇\n');
             const voltarButton = { text: '🏠 Menu Inicial', callback_data: 'voltar' }; // Cria o botão de voltar
             const salvarId4 = await ctx.reply('\n' + qrCodeData, { reply_markup: { inline_keyboard: [[voltarButton]] } }); // Envia o botão de voltar);
             if(salvarId1 && salvarId2 && salvarId3 && salvarId4){
+                mensagensIDS.push(salvarId.message_id);
                 mensagensIDS.push(salvarId1.message_id);
                 mensagensIDS.push(salvarId2.message_id);
                 mensagensIDS.push(salvarId3.message_id);
