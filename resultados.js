@@ -87,19 +87,7 @@ async function buscarResultadoPorConcurso(ctx) {
     console.log('MensagensIDS', mensagensIDS);
 }
 
-async function obterResultadoPorConcurso(numeroConcurso) {
-    // Implemente a lógica para obter o resultado do concurso aqui.
-    // Esta é apenas uma função de exemplo e pode não funcionar corretamente sem ajustes.
-    try {
-        const resultado = await lotofacil.getResultsByNumber(numeroConcurso);
-        return resultado;
-    } catch (error) {
-        console.error('Erro ao obter resultados do concurso:', error);
-        return null;
-    }
-}
-
-async function textListener(ctx) {
+ async function textListener(ctx) {
     const numeroConcurso = parseInt(ctx.message.text.trim(), 10);
     const resultado = await obterResultadoPorConcurso(numeroConcurso);
     if (!resultado) {
@@ -111,7 +99,11 @@ async function textListener(ctx) {
     ultimoConcursoConsultado = numeroConcurso;
     const formattedResult = formatarResultado(resultado);
     const buttons = criarBotoesPadrao();
-    ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
+    const concursoBuscado = ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
+    if (concursoBuscado) {
+        mensagensIDS.push(concursoBuscado.message_id);
+    }
+    console.log('MensagensIDS', mensagensIDS);
 };
 
 bot.action('resultado_anterior', apresentarResultadoAnterior);

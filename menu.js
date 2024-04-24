@@ -1,9 +1,13 @@
 // menu.js
 
 const { Markup } = require('telegraf');
-
+const bot = require('./bot'); // Importe o bot aqui para evitar circularidade
 const { apresentarTelaInicial } = require('./telaInicial');
 const { apresentarLinkIndicacao } = require('./linkIndicacao');
+// Importa o array para armazrenar os IDs das mensagens
+let { mensagensIDS } = require('./telaInicial');
+const { deleteCurrentMessage } = require('./telaInicial');
+const { deleteAllMessages } = require('./telaInicial');
 
 const MENU_CLASSIFICACAO = 'menu_classificacao';
 const MENU_RESULTADOS = 'menu_resultados';
@@ -51,6 +55,49 @@ function apresentarMenuResultados(ctx) {
         apresentarTelaInicial(ctx);
     }
 }
+
+bot.action('voltar', async (ctx) => {
+    // Apaga todas as mensagens cujos IDs estão em mensagensIDS
+    mensagensIDS.forEach(async (messageId) => {
+        try {
+            await ctx.deleteMessage(messageId);
+        } catch (error) {
+            console.error(`FALHA AO DELETAR A MENSAGEM COM O ID: ${messageId}:`, error);
+        }
+    });
+
+    // Limpa o vetor mensagensIDS
+    mensagensIDS.length = 0;
+
+    // Direciona para o menu inicial
+    const from = ctx.from; 
+    const menuEnviadoMsg = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+        caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
+                    { text: '📊 Resultados', callback_data: 'menu_resultados' }
+                ],
+                [
+                    { text: '🎮 Jogar', callback_data: 'menu_jogar' },
+                    { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
+                ],
+                [
+                    { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
+                    { text: '❓ Ajuda', callback_data: 'ajuda' }
+                ],
+                [
+                    { text: '🏠 Menu Inicial', callback_data: 'voltar' }
+                ]
+            ]
+        }
+    });
+    // Armazene o message_id da última mensagem enviada
+    mensagensIDS.push(menuEnviadoMsg.message_id);
+    console.log('MensagensIDS', mensagensIDS);
+});
+
 
 function apresentarMenuJogar(ctx) {
     menuState = MENU_JOGAR;
@@ -179,4 +226,7 @@ module.exports = {
     MENU_CLASSIFICACAO,
     MENU_RESULTADOS,
     MENU_JOGAR,
+    mensagensIDS,
+    deleteAllMessages,
+    deleteCurrentMessage,
 };
