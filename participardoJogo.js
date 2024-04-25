@@ -107,13 +107,11 @@ bot.action('confirmar', async (ctx) => { // Adicione async aqui para poder usar 
         const salvarId = await ctx.reply(`Confirme os Números Selecionados: \n${selectedNumbers.sort((a, b) => a - b).join('  ')}`, Markup.inlineKeyboard(keyboard));
         if(salvarId && salvarId.message_id){
             mensagensIDS.push(salvarId.message_id);
-            console.log('MensagensIDS',mensagensIDS);
         }
     } else {
         const salvarId = await ctx.reply('Por favor, selecione exatamente 10 números.'); // Use await aqui
         if(salvarId && salvarId.message_id){
             mensagensIDS.push(salvarId.message_id);
-            console.log('MensagensIDS',mensagensIDS);
         }
     }
 });
@@ -138,7 +136,6 @@ bot.action('confirmar_Numeros', async (ctx) => {
                 mensagensIDS.push(salvarId3.message_id);
                 mensagensIDS.push(salvarId4.message_id);
             }
-            console.log('MensagensIDS',mensagensIDS);
 
         } catch (error) {
             console.error('Erro ao processar ação confirmar_Numeros:', error);
@@ -239,7 +236,6 @@ bot.action('alterar_Numeros', async (ctx) => {
     if(salvarId){
         mensagensIDS.push(salvarId.message_id);
     }
-    console.log('MensagensIDS',mensagensIDS);
 });
 
 // Função para salvar os números selecionados em uma planilha do Excel

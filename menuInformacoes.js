@@ -12,7 +12,6 @@ async function enviarVideoExplicativo(ctx) {
     if (salvarId) {
         mensagensIDS.push(salvarId.message_id);
     }
-    console.log('MensagensIDS', mensagensIDS);
 
 }
 
@@ -24,7 +23,6 @@ async function enviarTextoExplicativo(ctx) {
     if (salvarId) {
         mensagensIDS.push(salvarId.message_id);
     }
-    console.log('MensagensIDS', mensagensIDS);
 }
 
 // Função para enviar informações sobre pagamento

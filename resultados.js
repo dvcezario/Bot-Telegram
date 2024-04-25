@@ -38,7 +38,6 @@ async function apresentarTodosResultados(ctx) {
     if (salvarId) {
         mensagensIDS.push(salvarId.message_id);
     }
-    console.log('MensagensIDS', mensagensIDS);
 }
 
 async function apresentarResultadoAnterior(ctx) {
@@ -48,7 +47,6 @@ async function apresentarResultadoAnterior(ctx) {
         if (salvarID5) {
             mensagensIDS.push(salvarID5.message_id);
         }
-        console.log('MensagensIDS', mensagensIDS);
         return;
     }
 
@@ -59,7 +57,6 @@ async function apresentarResultadoAnterior(ctx) {
         if (salvarId4) {
             mensagensIDS.push(salvarId4.message_id);
         }
-        console.log('MensagensIDS', mensagensIDS);
         return;
     }
 
@@ -70,7 +67,6 @@ async function apresentarResultadoAnterior(ctx) {
     if (salvarID3) {
         mensagensIDS.push(salvarID3.message_id);
     }
-    console.log('MensagensIDS', mensagensIDS);
 }
 
 async function apresentarResultadoProximo(ctx) {
@@ -81,7 +77,6 @@ async function apresentarResultadoProximo(ctx) {
         if (salvarID) {
             mensagensIDS.push(salvarID.message_id);
         }
-        console.log('MensagensIDS', mensagensIDS);
         return;
     }
 
@@ -92,7 +87,6 @@ async function apresentarResultadoProximo(ctx) {
     if (salvarId2) {
         mensagensIDS.push(salvarId2.message_id);
     }
-    console.log('MensagensIDS', mensagensIDS);
 }
 
 // Função para buscar resultado por concurso
@@ -107,7 +101,6 @@ async function buscarResultadoPorConcurso(ctx) {
     if (message) {
         mensagensIDS.push(message.message_id);
     }
-    console.log('MensagensIDS', mensagensIDS);
 }
 
  async function textListener(ctx) {
@@ -119,7 +112,6 @@ async function buscarResultadoPorConcurso(ctx) {
         if (salvarID) {
             mensagensIDS.push(salvarID.message_id);
         }
-        console.log('MensagensIDS', mensagensIDS);
         return;
     }
 
@@ -130,7 +122,6 @@ async function buscarResultadoPorConcurso(ctx) {
     if (concursoBuscado) {
         mensagensIDS.push(concursoBuscado.message_id);
     }
-    console.log('MensagensIDS', mensagensIDS);
 };
 
 bot.action('resultado_anterior', apresentarResultadoAnterior);

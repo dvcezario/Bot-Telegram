@@ -19,14 +19,12 @@ async function apresentarClassificacaoGeral(ctx) {
     if (sentMessage2.message_id != undefined) {
         mensagensIDS.push(sentMessage2.message_id);
     }
-    console.log('MensagensIDS', mensagensIDS);
 }
 
 async function apresentarClassificacaoRodada(ctx) {
     const classificacaoRodadaPath = path.join(__dirname, 'ClassificacaoRodada.pdf');
     const sentMessage = await ctx.replyWithDocument({ source: classificacaoRodadaPath });
     mensagensIDS.push(sentMessage.message_id);
-    console.log('MensagensIDS', mensagensIDS);
 }
 
 module.exports = {
