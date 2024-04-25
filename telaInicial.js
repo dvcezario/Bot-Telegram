@@ -12,14 +12,11 @@ let mensagensIDS = [];
 async function apresentarTelaInicial(ctx) {
     try {
         const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
-        console.log(from);
 
         // Verifica se é uma callback query 
         if (ctx.callbackQuery) {
 
             if (!ctx.callbackQuery.message || !ctx.callbackQuery.message.caption) {
-                console.log('Não tem legenda No If');
-                console.log('MensagensIDS', mensagensIDS);
                 try {
                     deleteAllMessages(ctx);
                 }
@@ -44,9 +41,6 @@ async function apresentarTelaInicial(ctx) {
                             [
                                 { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
                                 { text: '❓ Ajuda', callback_data: 'ajuda' }
-                            ],
-                            [
-                                { text: '🏠 Menu Inicial', callback_data: 'voltar' }
                             ]
                         ]
                     }
@@ -69,19 +63,12 @@ async function apresentarTelaInicial(ctx) {
                         [
                             { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
                             { text: '❓ Ajuda', callback_data: 'ajuda' }
-                        ],
-                        [
-                            { text: '🏠 Menu Inicial', callback_data: 'voltar' }
                         ]
                     ]
                 },
                 parse_mode: 'Markdown'
             });
         } else {
-            // Enviar a foto e a mensagem de boas-vindas
-            if (!ctx.message || !ctx.message.caption) {
-                console.log('Não tem legenda NO ELSE');
-            }
             // Enviar a foto e a mensagem de boas-vindas
             const sentMessage = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
                 caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
@@ -98,9 +85,6 @@ async function apresentarTelaInicial(ctx) {
                         [
                             { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
                             { text: '❓ Ajuda', callback_data: 'ajuda' }
-                        ],
-                        [
-                            { text: '🏠 Menu Inicial', callback_data: 'voltar' }
                         ]
                     ]
                 }

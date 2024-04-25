@@ -94,7 +94,6 @@ bot.action('voltar', async (ctx) => {
     });
     // Armazene o message_id da última mensagem enviada
     mensagensIDS.push(menuEnviadoMsg.message_id);
-    console.log('MensagensIDS', mensagensIDS);
 });
 
 

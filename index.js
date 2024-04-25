@@ -76,7 +76,6 @@ bot.command('classificacao', async (ctx) => {
         }
     });
     mensagensIDS.push(salvarId.message_id);
-    console.log(mensagensIDS);
 });
 
 // Digitar /jogar
@@ -104,7 +103,6 @@ bot.command('jogar', async (ctx) => {
         }
     });
     mensagensIDS.push(salvarId.message_id);
-    console.log(mensagensIDS);
 });
 
 // Digitar /indicações
@@ -134,7 +132,6 @@ bot.command('indicacao', async (ctx) => {
         }
     });
     mensagensIDS.push(salvarId.message_id);
-    console.log(mensagensIDS);
 });
 
 
@@ -163,7 +160,6 @@ bot.command('ajuda', async (ctx) => {
         }
     });
     mensagensIDS.push(salvarId.message_id);
-    console.log(mensagensIDS);
 });
 
 // Digitar /informacoes
@@ -193,7 +189,6 @@ bot.command('informacoes', async (ctx) => {
         }
     });
     mensagensIDS.push(salvarId.message_id);
-    console.log(mensagensIDS);
 });
 
 // Digitar /resultados
@@ -219,7 +214,6 @@ bot.command('resultados', async (ctx) => {
             }
     });
     mensagensIDS.push(salvarId.message_id);
-    console.log(mensagensIDS);
 });
 
 
