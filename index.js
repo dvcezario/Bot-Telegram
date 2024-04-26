@@ -5,13 +5,15 @@ const apiUrl = process.env.API_URL.replace('${TOKEN}', token);
 const apiFileUrl = process.env.API_FILE_URL.replace('${TOKEN}', token);
 const { Markup } = require('telegraf');
 const bot = require('./bot');
-const { mensagensIDS } = require('./telaInicial');
+const session = require('telegraf/session');
+
 const { deleteAllMessages } = require('./telaInicial');
 const fs = require('fs');
 const resultados = require('./resultados')
 const participarDoJogo = require('./participardoJogo');
 const path = require('path');
 const photoPath = path.join(__dirname, 'Logo3.jpg');
+
 
 const { apresentarTelaInicial, MENU_INICIAL } = require('./telaInicial');
 const { apresentarMenuClassificacao, apresentarMenuResultados, apresentarMenuJogar, apresentarInformacoesJogo, apresentarMenuLinkIndicacao, apresentarMenuAjuda, apresentarSubMenuAcertoAcumulado } = require('./menu');
@@ -21,13 +23,25 @@ const { apresentarPremiacoes, apresentarPlanilhaJogadores } = require('./jogar')
 const { validatePhoneNumber } = require('./participardoJogo');
 const { enviarVideoExplicativo, enviarTextoExplicativo, enviarInformacoesPagamento, enviarInformacoesRecebimento } = require('./menuInformacoes');
 const mercadopago = require('./mercadopago');
+const { mensagensIDS } = require('./telaInicial');
 
+console.log(session);
 
 
 bot.start(async (ctx, next) => {
-    if (mensagensIDS.length > 0) {
-        await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[0]);
-        mensagensIDS.shift();
+
+    // Initialize ctx.session.mensagensIDS if it doesn't exist
+    if (!ctx.session) {
+        ctx.session = {};
+    }
+
+    if (!ctx.session.mensagensIDS) {
+        ctx.session.mensagensIDS = [];
+    }
+
+    if (ctx.session.mensagensIDS.length > 0) {
+        await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
+        ctx.session.mensagensIDS.shift();
     }
     next();
 }, apresentarTelaInicial);
@@ -52,7 +66,6 @@ bot.action('texto_explicativo', enviarTextoExplicativo);
 bot.action('informacoes_pagamento', enviarInformacoesPagamento);
 bot.action('informacoes_recebimento', enviarInformacoesRecebimento);
 
-
 // Digitar /classificao
 bot.command('classificacao', async (ctx) => {
     if (mensagensIDS.length > 0) {
@@ -75,7 +88,7 @@ bot.command('classificacao', async (ctx) => {
             ]
         }
     });
-    mensagensIDS.push(salvarId.message_id);
+    await ctx.session.mensagensIDS.push(salvarId.message_id);
 });
 
 // Digitar /jogar
@@ -102,7 +115,7 @@ bot.command('jogar', async (ctx) => {
             ]
         }
     });
-    mensagensIDS.push(salvarId.message_id);
+    await ctx.session.mensagensIDS.push(salvarId.message_id);
 });
 
 // Digitar /indicações
@@ -131,7 +144,7 @@ bot.command('indicacao', async (ctx) => {
             ]
         }
     });
-    mensagensIDS.push(salvarId.message_id);
+    await ctx.session.mensagensIDS.push(salvarId.message_id);
 });
 
 
@@ -159,7 +172,7 @@ bot.command('ajuda', async (ctx) => {
             ]
         }
     });
-    mensagensIDS.push(salvarId.message_id);
+    await ctx.session.mensagensIDS.push(salvarId.message_id);
 });
 
 // Digitar /informacoes
@@ -188,7 +201,7 @@ bot.command('informacoes', async (ctx) => {
             ]
         }
     });
-    mensagensIDS.push(salvarId.message_id);
+    await ctx.session.mensagensIDS.push(salvarId.message_id);
 });
 
 // Digitar /resultados
@@ -201,19 +214,19 @@ bot.command('resultados', async (ctx) => {
     const photo = fs.readFileSync(photoPath);
     const salvarId = await ctx.replyWithPhoto({ source: photo }, {
         caption: 'Selecione quais Resultados:',
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: '🍀 Todos', callback_data: 'todos_resultados' },
-                        { text: '🍀 Concurso', callback_data: 'buscar_concurso' },
-                    ],
-                    [
-                        { text: '🏠 Menu Inicial', callback_data: 'voltar' }
-                    ]
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🍀 Todos', callback_data: 'todos_resultados' },
+                    { text: '🍀 Concurso', callback_data: 'buscar_concurso' },
+                ],
+                [
+                    { text: '🏠 Menu Inicial', callback_data: 'voltar' }
                 ]
-            }
+            ]
+        }
     });
-    mensagensIDS.push(salvarId.message_id);
+    await ctx.session.mensagensIDS.push(salvarId.message_id);
 });
 
 

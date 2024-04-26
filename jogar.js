@@ -26,7 +26,8 @@ async function apresentarSubMenuAcertoAcumulado(ctx) {
                 ]
             }
         });
-        mensagensIDS.push(salvarId.message_id);
+        ctx.session.mensagensIDS.push(salvarId.message_id);
+        console.log('SELECIONE' + mensagensIDS);
     } else {
         apresentarTelaInicial(ctx);
     }
@@ -38,7 +39,7 @@ async function apresentarPremiacoes(ctx) {
     if (salvarId) {
         mensagensIDS.push(salvarId.message_id);
     }
-    mensagensIDS.push(salvarId.message_id);
+    ctx.session.mensagensIDS.push(salvarId.message_id);
 }
 
 async function apresentarPlanilhaJogadores(ctx) {
@@ -47,7 +48,7 @@ async function apresentarPlanilhaJogadores(ctx) {
     if (salvarId) {
         mensagensIDS.push(salvarId.message_id);
     }
-    mensagensIDS.push(salvarId.message_id);
+    ctx.session.mensagensIDS.push(salvarId.message_id);
 }
 
 

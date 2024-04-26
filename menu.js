@@ -30,6 +30,7 @@ function apresentarMenuClassificacao(ctx) {
                 ]
             }
         });
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
     } else {
         apresentarTelaInicial(ctx);
     }
@@ -57,16 +58,16 @@ function apresentarMenuResultados(ctx) {
 }
 
 bot.action('voltar', async (ctx) => {
-    // Apaga todas as mensagens cujos IDs estão em mensagensIDS
-    mensagensIDS.forEach(async (messageId) => {
+    // Apaga todas as mensagens cujos IDs estão em ctx.session.mensagensIDS
+    ctx.session.mensagensIDS.forEach(async (messageId) => {
         try {
             await ctx.deleteMessage(messageId);
         } catch {
         }
     });
 
-    // Limpa o vetor mensagensIDS
-    mensagensIDS.length = 0;
+    // Limpa o vetor ctx.session.mensagensIDS
+    ctx.session.mensagensIDS.length = 0;
 
     // Direciona para o menu inicial
     const from = ctx.from; 
@@ -93,8 +94,10 @@ bot.action('voltar', async (ctx) => {
         }
     });
     // Armazene o message_id da última mensagem enviada
-    mensagensIDS.push(menuEnviadoMsg.message_id);
+    await ctx.session.mensagensIDS.push(menuEnviadoMsg.message_id);
+    console.log(ctx.session.mensagensIDS);
 });
+
 
 
 function apresentarMenuJogar(ctx) {

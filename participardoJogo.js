@@ -26,7 +26,7 @@ function isValidPhoneNumber(phoneNumber) {
 async function validatePhoneNumber(ctx) {
     // Pergunta ao usuário para digitar o número de telefone
     const salvarId = await ctx.editMessageCaption('Ficaremos felizes em entrar em contato contigo, caso seja um ganhador! Para isso, digite seu número de telefone com o DDD.');
-    mensagensIDS.push(salvarId.message_id);
+    ctx.session.mensagensIDS.push(salvarId.message_id);
 
     // Aguarda a próxima mensagem do usuário para validar o número
 bot.on('text', async (msg) => { // Torna a função de callback assíncrona
@@ -39,14 +39,14 @@ bot.on('text', async (msg) => { // Torna a função de callback assíncrona
         const keyboard = createNumericKeyboard();
         const salvarId = await ctx.reply('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
         if(salvarId){
-            mensagensIDS.push(salvarId.message_id);
+            ctx.session.mensagensIDS.push(salvarId.message_id);
         }
         console.log('Keyboard',mensagensIDS);
     } else {
         const voltarButton = { text: '🏠 Menu Inicial', callback_data: 'voltar' }; // Cria o botão de voltar
         const salvarId = await ctx.reply('Número inválido. Por favor, digite um número válido.', { reply_markup: { inline_keyboard: [[voltarButton]] } });
         if(salvarId){
-            mensagensIDS.push(salvarId.message_id);
+            ctx.session.mensagensIDS.push(salvarId.message_id);
         }
         console.log('MensagensIDS',mensagensIDS);
     }
@@ -67,6 +67,7 @@ function createNumericKeyboard(selectedNumbers) {
     // Adiciona botões confirmar e voltar
     const confirmButton = Markup.button.callback('Confirmar', 'confirmar');
     keyboard.push([confirmButton, Markup.button.callback('Voltar', 'voltar')]);
+    ctx.session.mensagensIDS.push(keyboard.message_id);
     return keyboard;
 }
 

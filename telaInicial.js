@@ -1,21 +1,19 @@
-const { Markup } = require('telegraf'); // Importe o Markup do Telegraf
-const bot = require('./bot'); // Importe o bot aqui para evitar circularidade
+const { Markup } = require('telegraf');
+const bot = require('./bot');
 const MENU_INICIAL = 'menu_inicial';
-
-/**
- * Função para apresentar a tela inicial do bot.
- * @param {object} ctx O contexto da mensagem.
- */
+const telegraf = require('telegraf');
+const session = require('telegraf/session');
+const bot2 = new telegraf.Telegraf(process.env.TOKEN);
 
 let mensagensIDS = [];
 
 async function apresentarTelaInicial(ctx) {
     try {
+        await deleteAllMessages(ctx);
+
         const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
 
-        // Verifica se é uma callback query 
         if (ctx.callbackQuery) {
-
             if (!ctx.callbackQuery.message || !ctx.callbackQuery.message.caption) {
                 try {
                     deleteAllMessages(ctx);
@@ -24,8 +22,6 @@ async function apresentarTelaInicial(ctx) {
                     console.error('Erro ao excluir as mensagens', error);
                 }
 
-                // É uma callback porém não tem legenda
-                // Envia a foto e a mensagem de boas-vindas
                 const sentMessage2 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
                     caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
                     reply_markup: {
@@ -45,11 +41,11 @@ async function apresentarTelaInicial(ctx) {
                         ]
                     }
                 });
-                // Armazene o message_id da última mensagem enviada
-                mensagensIDS.push(sentMessage2.message_id);
+                await ctx.session.mensagensIDS.push(sentMessage2.message_id);
+                console.log(ctx.session.mensagensIDS);
+
             }
-            // É uma callback porém tem legenda
-            await ctx.editMessageCaption(`${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`, {
+            const salvarId = await ctx.editMessageCaption(`${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`, {
                 reply_markup: {
                     inline_keyboard: [
                         [
@@ -66,10 +62,12 @@ async function apresentarTelaInicial(ctx) {
                         ]
                     ]
                 },
-                parse_mode: 'Markdown'
+                parse_mode: 'Markdown',
+
             });
+            await ctx.session.mensagensIDS.push(salvarId.message_id)
+            console.log(ctx.session.mensagensIDS);
         } else {
-            // Enviar a foto e a mensagem de boas-vindas
             const sentMessage = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
                 caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
                 reply_markup: {
@@ -89,8 +87,9 @@ async function apresentarTelaInicial(ctx) {
                     ]
                 }
             });
-            // Armazene o message_id da última mensagem enviada
-            mensagensIDS.push(sentMessage.message_id);
+            await ctx.session.mensagensIDS.push(sentMessage.message_id);
+            console.log(ctx.session.mensagensIDS);
+
         }
     } catch (error) {
         console.error('Estou no Catch');
@@ -98,17 +97,11 @@ async function apresentarTelaInicial(ctx) {
 }
 
 async function deleteAllMessages(ctx) {
-    // Remove todos os elementos undefined de mensagensIDS
     mensagensIDS = mensagensIDS.filter(item => item !== undefined);
-    // Verifica se mensagensIDS tem pelo menos uma mensagem
     if (mensagensIDS.length > 0) {
         try {
-            // Itera sobre mensagensIDS de trás para frente
             for (let i = mensagensIDS.length - 1; i >= 0; i--) {
-                // Exclui a mensagem
                 await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[i]);
-
-                // Remove o message_id de mensagensIDS
                 mensagensIDS.splice(i, 1);
             }
         } catch {
