@@ -2,13 +2,14 @@
 
 const { Markup } = require('telegraf');
 const path = require('path');
-const { mensagensIDS } = require('./telaInicial');
+const { mensagensIDS, deleteAllMessages } = require('./telaInicial');
 
 // Função para apresentar o submenu "Acerto Acumulado"
 async function apresentarSubMenuAcertoAcumulado(ctx) {
     menuState = MENU_ACERTO_ACUMULADO;
     if (ctx.callbackQuery) {
-        const salvarId = await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+        await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
             reply_markup: {
                 inline_keyboard: [
                     [
@@ -26,8 +27,6 @@ async function apresentarSubMenuAcertoAcumulado(ctx) {
                 ]
             }
         });
-        ctx.session.mensagensIDS.push(salvarId.message_id);
-        console.log('SELECIONE' + mensagensIDS);
     } else {
         apresentarTelaInicial(ctx);
     }

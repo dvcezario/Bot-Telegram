@@ -13,7 +13,6 @@ const session = new RedisSession({
     }
 });
 
-// Use Redis session as middleware
 bot.use(session.middleware());
 
 module.exports = bot;

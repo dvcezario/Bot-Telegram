@@ -25,7 +25,6 @@ const { enviarVideoExplicativo, enviarTextoExplicativo, enviarInformacoesPagamen
 const mercadopago = require('./mercadopago');
 const { mensagensIDS } = require('./telaInicial');
 
-console.log(session);
 
 
 bot.start(async (ctx, next) => {
@@ -40,8 +39,6 @@ bot.start(async (ctx, next) => {
     }
 
     if (ctx.session.mensagensIDS.length > 0) {
-        await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
-        ctx.session.mensagensIDS.shift();
     }
     next();
 }, apresentarTelaInicial);

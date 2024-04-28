@@ -5,15 +5,19 @@ require('dotenv').config();
 const fs = require('fs');
 const xlsx = require('xlsx');
 const { Markup } = require('telegraf');
-const bot = require('./bot');
-const axios = require('axios');
+const axios = require('axios'); 
 const crypto = require('crypto');
+const Telegraf = require('telegraf');
+const session = require('telegraf/session');
 const { mensagensIDS, deleteAllMessages } = require('./telaInicial');
-
+const bot = require('./bot');
 let selectedNumbers = [];
 let userPhoneNumber = ''; // Variável global para armazenar o número de telefone
 let idUnicoGlobal;
 let qrCodeDataGlobal;
+
+
+
 
 // Função para validar o número de telefone
 function isValidPhoneNumber(phoneNumber) {
@@ -26,35 +30,36 @@ function isValidPhoneNumber(phoneNumber) {
 async function validatePhoneNumber(ctx) {
     // Pergunta ao usuário para digitar o número de telefone
     const salvarId = await ctx.editMessageCaption('Ficaremos felizes em entrar em contato contigo, caso seja um ganhador! Para isso, digite seu número de telefone com o DDD.');
-    ctx.session.mensagensIDS.push(salvarId.message_id);
+    await ctx.session.mensagensIDS.push(salvarId.message_id);
+    console.log('MENSAGENS IDS' + ctx.session.mensagensIDS);
 
     // Aguarda a próxima mensagem do usuário para validar o número
-bot.on('text', async (msg) => { // Torna a função de callback assíncrona
-    const response = msg.text.trim();
-    if (isValidPhoneNumber(response)) {
-        // Após a validação bem-sucedida, armazena o número de telefone na variável global
-        userPhoneNumber = response;
+    bot.on('text', async (msg) => { // Torna a função de callback assíncrona
+        const response = msg.text.trim();
+        if (isValidPhoneNumber(response)) {
+            // Após a validação bem-sucedida, armazena o número de telefone na variável global
+            userPhoneNumber = response;
 
-        // Após a validação bem-sucedida, chama a função createNumericKeyboard
-        const keyboard = createNumericKeyboard();
-        const salvarId = await ctx.reply('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
-        if(salvarId){
-            ctx.session.mensagensIDS.push(salvarId.message_id);
+            // Após a validação bem-sucedida, chama a função createNumericKeyboard
+            const selectedNumbers = []; // Substitua isso pela lista de números selecionados
+            const keyboard = await createNumericKeyboard(ctx, selectedNumbers);
+            const salvarId = await ctx.reply('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
+
+            if (salvarId) {
+                ctx.session.mensagensIDS.push(salvarId.message_id);
+            }
+        } else {
+            const voltarButton = { text: '🏠 Menu Inicial', callback_data: 'voltar' }; // Cria o botão de voltar
+            const salvarId = await ctx.reply('Número inválido. Por favor, digite um número válido.', { reply_markup: { inline_keyboard: [[voltarButton]] } });
+            if (salvarId) {
+                ctx.session.mensagensIDS.push(salvarId.message_id);
+            }
         }
-        console.log('Keyboard',mensagensIDS);
-    } else {
-        const voltarButton = { text: '🏠 Menu Inicial', callback_data: 'voltar' }; // Cria o botão de voltar
-        const salvarId = await ctx.reply('Número inválido. Por favor, digite um número válido.', { reply_markup: { inline_keyboard: [[voltarButton]] } });
-        if(salvarId){
-            ctx.session.mensagensIDS.push(salvarId.message_id);
-        }
-        console.log('MensagensIDS',mensagensIDS);
-    }
-});
+    });
 }
 
 // Função para criar o teclado numérico com 12 linhas e 5 colunas
-function createNumericKeyboard(selectedNumbers) {
+async function createNumericKeyboard(ctx, selectedNumbers) {
     const keyboard = [];
     let row = [];
     for (let i = 1; i <= 60; i++) {
@@ -67,7 +72,6 @@ function createNumericKeyboard(selectedNumbers) {
     // Adiciona botões confirmar e voltar
     const confirmButton = Markup.button.callback('Confirmar', 'confirmar');
     keyboard.push([confirmButton, Markup.button.callback('Voltar', 'voltar')]);
-    ctx.session.mensagensIDS.push(keyboard.message_id);
     return keyboard;
 }
 
@@ -85,17 +89,20 @@ bot.action(/^[1-9]\d*$/, (ctx) => {
         selectedNumbers.splice(index, 1);
     }
     // Atualiza o teclado com os números selecionados
-    const keyboard = createNumericKeyboard().map(row => {
-        return row.map(button => {
-            if (selectedNumbers.includes(parseInt(button.callback_data))) {
-                // Muda a cor do botão se estiver selecionado
-                return Markup.button.callback(`${button.callback_data} ✅`, `${button.callback_data}`);
-            } else {
-                return button;
-            }
+    (async () => {
+        const keyboardData = await createNumericKeyboard();
+        const keyboard = keyboardData.map(row => {
+            return row.map(button => {
+                if (selectedNumbers.includes(parseInt(button.callback_data))) {
+                    // Muda a cor do botão se estiver selecionado
+                    return Markup.button.callback(`${button.callback_data} ✅`, `${button.callback_data}`);
+                } else {
+                    return button;
+                }
+            });
         });
-    });
-    ctx.editMessageText('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
+        ctx.editMessageText('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
+    })();
 });
 
 // Função para lidar com o botão confirmar
@@ -106,12 +113,12 @@ bot.action('confirmar', async (ctx) => { // Adicione async aqui para poder usar 
         const alterar_NumerosButton = Markup.button.callback('Alterar Números', 'alterar_Numeros');
         const keyboard = [[confirm_NumerosButton, alterar_NumerosButton]];
         const salvarId = await ctx.reply(`Confirme os Números Selecionados: \n${selectedNumbers.sort((a, b) => a - b).join('  ')}`, Markup.inlineKeyboard(keyboard));
-        if(salvarId && salvarId.message_id){
+        if (salvarId && salvarId.message_id) {
             mensagensIDS.push(salvarId.message_id);
         }
     } else {
         const salvarId = await ctx.reply('Por favor, selecione exatamente 10 números.'); // Use await aqui
-        if(salvarId && salvarId.message_id){
+        if (salvarId && salvarId.message_id) {
             mensagensIDS.push(salvarId.message_id);
         }
     }
@@ -119,7 +126,7 @@ bot.action('confirmar', async (ctx) => { // Adicione async aqui para poder usar 
 
 bot.action('confirmar_Numeros', async (ctx) => {
     if (selectedNumbers.length === 10) {
-        try { 
+        try {
             await salvarNumerosSelecionados(selectedNumbers, ctx);
             const { id, qrCodeData, qrCodeBase64 } = await gerarQRCodePix();
             await inserirIDPagamentoNaPlanilha(id);
@@ -130,7 +137,7 @@ bot.action('confirmar_Numeros', async (ctx) => {
             const salvarId3 = await ctx.reply('\n💠💠 PIX Copia e Cola 👇👇\n');
             const voltarButton = { text: '🏠 Menu Inicial', callback_data: 'voltar' }; // Cria o botão de voltar
             const salvarId4 = await ctx.reply('\n' + qrCodeData, { reply_markup: { inline_keyboard: [[voltarButton]] } }); // Envia o botão de voltar);
-            if(salvarId1 && salvarId2 && salvarId3 && salvarId4){
+            if (salvarId1 && salvarId2 && salvarId3 && salvarId4) {
                 mensagensIDS.push(salvarId.message_id);
                 mensagensIDS.push(salvarId1.message_id);
                 mensagensIDS.push(salvarId2.message_id);
@@ -141,7 +148,7 @@ bot.action('confirmar_Numeros', async (ctx) => {
         } catch (error) {
             console.error('Erro ao processar ação confirmar_Numeros:', error);
             const salvarId = await ctx.reply('Ocorreu um erro ao processar sua solicitação.');
-            if(salvarId){
+            if (salvarId) {
                 mensagensIDS.push(salvarId.message_id);
             }
         }
@@ -208,7 +215,7 @@ async function inserirIDPagamentoNaPlanilha(idUnico) {
             for (let rowIndex = 1; ; rowIndex++) {
                 const cellAddress = idPagamentoColumn + rowIndex;
                 const cell = worksheet[cellAddress];
-                
+
                 if (!cell || !cell.v) {
                     targetRowIndex = rowIndex;
                     break;
@@ -234,8 +241,8 @@ bot.action('alterar_Numeros', async (ctx) => {
     selectedNumbers = []; // Limpar os números selecionados
     const keyboard = createNumericKeyboard(selectedNumbers);
     const salvarId = await ctx.editMessageText('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
-    if(salvarId){
-        mensagensIDS.push(salvarId.message_id);
+    if (salvarId) {
+        ctx.session.mensagensIDS.push(salvarId.message_id);
     }
 });
 

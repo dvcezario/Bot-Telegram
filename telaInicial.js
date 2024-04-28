@@ -8,8 +8,8 @@ const bot2 = new telegraf.Telegraf(process.env.TOKEN);
 let mensagensIDS = [];
 
 async function apresentarTelaInicial(ctx) {
+
     try {
-        await deleteAllMessages(ctx);
 
         const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
 
@@ -42,7 +42,6 @@ async function apresentarTelaInicial(ctx) {
                     }
                 });
                 await ctx.session.mensagensIDS.push(sentMessage2.message_id);
-                console.log(ctx.session.mensagensIDS);
 
             }
             const salvarId = await ctx.editMessageCaption(`${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`, {
@@ -66,7 +65,6 @@ async function apresentarTelaInicial(ctx) {
 
             });
             await ctx.session.mensagensIDS.push(salvarId.message_id)
-            console.log(ctx.session.mensagensIDS);
         } else {
             const sentMessage = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
                 caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
@@ -88,7 +86,6 @@ async function apresentarTelaInicial(ctx) {
                 }
             });
             await ctx.session.mensagensIDS.push(sentMessage.message_id);
-            console.log(ctx.session.mensagensIDS);
 
         }
     } catch (error) {
@@ -97,15 +94,17 @@ async function apresentarTelaInicial(ctx) {
 }
 
 async function deleteAllMessages(ctx) {
-    mensagensIDS = mensagensIDS.filter(item => item !== undefined);
-    if (mensagensIDS.length > 0) {
-        try {
-            for (let i = mensagensIDS.length - 1; i >= 0; i--) {
-                await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[i]);
-                mensagensIDS.splice(i, 1);
+    ctx.session.mensagensIDS = ctx.session.mensagensIDS.filter(item => item !== undefined);
+    const messageIDs = [...ctx.session.mensagensIDS];
+    if (messageIDs.length > 0) {
+        await Promise.all(messageIDs.map(async (id) => {
+            try {
+                await ctx.telegram.deleteMessage(ctx.chat.id, id);
+            } catch (error) {
+                console.error('Error deleting message:', error);
             }
-        } catch {
-        }
+        }));
+        ctx.session.mensagensIDS = [];
     } else {
         console.log('Não há mensagens para excluir');
     }

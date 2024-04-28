@@ -52,6 +52,7 @@ function apresentarMenuResultados(ctx) {
                 ]
             }
         });
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
     } else {
         apresentarTelaInicial(ctx);
     }
@@ -95,12 +96,11 @@ bot.action('voltar', async (ctx) => {
     });
     // Armazene o message_id da última mensagem enviada
     await ctx.session.mensagensIDS.push(menuEnviadoMsg.message_id);
-    console.log(ctx.session.mensagensIDS);
 });
 
 
 
-function apresentarMenuJogar(ctx) {
+async function apresentarMenuJogar(ctx) {
     menuState = MENU_JOGAR;
     if (ctx.callbackQuery) {
         ctx.editMessageCaption('Selecione uma opção para jogar:', {
@@ -118,13 +118,14 @@ function apresentarMenuJogar(ctx) {
                 ]
             }
         });
+        await ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
     } else {
         apresentarTelaInicial(ctx);
     }
 }
 
 // Função para apresentar as informações do jogo
-function apresentarInformacoesJogo(ctx) {
+async function apresentarInformacoesJogo(ctx) {
     if (ctx.callbackQuery) {
         ctx.editMessageCaption('Informações sobre Jogo', {
             reply_markup: {
@@ -143,10 +144,12 @@ function apresentarInformacoesJogo(ctx) {
                 ]
             }
         });
+        await ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
     } else {
         apresentarTelaInicial(ctx);
     }
 }
+
 
 // Função para apresentar o menu de indicação
 function apresentarMenuLinkIndicacao(ctx) {
@@ -193,29 +196,32 @@ function apresentarMenuAjuda(ctx) {
 function apresentarSubMenuAcertoAcumulado(ctx) {
     menuState = MENU_ACERTO_ACUMULADO;
     if (ctx.callbackQuery) {
-        ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: '🏁 Participar do Jogo', callback_data: 'participar_jogo' }
-                    ],
-                    [
-                        { text: '🏆 Premiações', callback_data: 'premiacoes' }
-                    ],
-                    [
-                        { text: '🧍‍♂️🧍‍♀️🧍 Planilha de Jogadores', callback_data: 'planilha_jogadores' }
-                    ],
-                    [
-                        { text: '🏠 Menu Inicial', callback_data: 'voltar' }
+        try {
+            ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '🏁 Participar do Jogo', callback_data: 'participar_jogo' }
+                        ],
+                        [
+                            { text: '🏆 Premiações', callback_data: 'premiacoes' }
+                        ],
+                        [
+                            { text: '🧍‍♂️🧍‍♀️🧍 Planilha de Jogadores', callback_data: 'planilha_jogadores' }
+                        ],
+                        [
+                            { text: '🏠 Menu Inicial', callback_data: 'voltar' }
+                        ]
                     ]
-                ]
+                }
+            });
+        } catch (err) {
+            if (err.response.error_code !== 400) {
+                throw err;
             }
-        });
-    } else {
-        apresentarTelaInicial(ctx);
+        }
     }
 }
-
 module.exports = {
     apresentarMenuClassificacao,
     apresentarMenuResultados,

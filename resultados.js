@@ -1,12 +1,12 @@
 const { Markup } = require('telegraf');
 const axios = require('axios');
 const bot = require('./bot');
+const session = require('telegraf/session');
 const telaInicial = require('./telaInicial'); // Importe a função de apresentar a tela inicial
 // Importa o array para armazrenar os IDs das mensagens
 const { mensagensIDS } = require('./telaInicial');
 
 let ultimoConcursoConsultado; // Variável para armazenar o número do último concurso consultado
-
 
 async function obterUltimoResultado() {
     try {
@@ -30,12 +30,12 @@ async function apresentarTodosResultados(ctx) {
     const formattedResult = formatarResultado(ultimoResultado);
     const buttons = criarBotoesPadrao();
 
-    
+
     const salvarIdInfo = await ctx.editMessageCaption('Informações sobre o concurso:');
     if (salvarIdInfo) {
         ctx.session.mensagensIDS.push(salvarIdInfo.message_id);
     }
-    
+
     const salvarId = await ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
     if (ctx.message) {
         ctx.session.mensagensIDS.push(ctx.message.message_id);
@@ -109,9 +109,10 @@ async function buscarResultadoPorConcurso(ctx) {
     }
 }
 
- async function textListener(ctx) {
+async function textListener(ctx) {
+    
     const numeroConcurso = parseInt(ctx.message.text.trim(), 10);
-    const resultado = await obterResultadoPorConcurso(numeroConcurso);
+    const resultado = await obterResultadoPorConcurso(numeroConcurso, ctx);
     if (!resultado) {
         const buttons = criarBotoesPadrao();
         const salvarID = await ctx.replyWithMarkdown('Resultado não encontrado para o concurso informado.', Markup.inlineKeyboard(buttons));
@@ -135,13 +136,17 @@ bot.action('resultado_proximo', apresentarResultadoProximo);
 bot.action('buscar_concurso', buscarResultadoPorConcurso);
 bot.action(telaInicial.MENU_INICIAL, telaInicial.apresentarTelaInicial);
 
-async function obterResultadoPorConcurso(concurso) {
+async function obterResultadoPorConcurso(concurso, ctx) {
     try {
         const response = await axios.get(`https://loteriascaixa-api.herokuapp.com/api/megasena/${concurso}`);
         return response.data;
-    } catch (error) {
+    } catch {
         const buttons = criarBotoesPadrao();
-        ctx.replyWithMarkdown('Erro ao obter resultados do concurso ${concurso}:', Markup.inlineKeyboard(buttons));
+        if (ctx.reply) {
+            ctx.reply(`Erro ao obter resultados do concurso ${concurso}:`, Markup.inlineKeyboard(buttons), { parse_mode: 'Markdown' });
+        } else if (ctx.telegram && ctx.telegram.sendMessage) {
+            ctx.telegram.sendMessage(ctx.chat.id, `Erro ao obter resultados do concurso ${concurso}:`, { parse_mode: 'Markdown' });
+        }
         return null;
     }
 }
@@ -188,5 +193,6 @@ module.exports = {
     criarBotoesPadrao,
     formatarResultado,
     ultimoConcursoConsultado,
-    mensagensIDS
+    mensagensIDS,
+    session
 };
