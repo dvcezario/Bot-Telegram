@@ -20,16 +20,30 @@ function apresentarMenuClassificacao(ctx) {
 }
 
 
+let isSending = false;
+
 async function apresentarClassificacaoGeral(ctx) {
-    const classificacaoGeralPath = path.join(__dirname, 'ClassificacaoGeral.pdf');
-    const sentMessage2 = await ctx.replyWithDocument({ source: classificacaoGeralPath });
-    ctx.session.mensagensIDS.push(sentMessage2.message_id);
+    if (isSending) return;
+    isSending = true;
+    try {
+        const classificacaoGeralPath = path.join(__dirname, 'ClassificacaoGeral.pdf');
+        const sentMessage2 = await ctx.replyWithDocument({ source: classificacaoGeralPath });
+        ctx.session.mensagensIDS.push(sentMessage2.message_id);
+    } finally {
+        isSending = false;
+    }
 }
 
 async function apresentarClassificacaoRodada(ctx) {
-    const classificacaoRodadaPath = path.join(__dirname, 'ClassificacaoRodada.pdf');
-    const sentMessage = await ctx.replyWithDocument({ source: classificacaoRodadaPath });
-    ctx.session.mensagensIDS.push(sentMessage.message_id);
+    if (isSending) return;
+    isSending = true;
+    try {
+        const classificacaoRodadaPath = path.join(__dirname, 'ClassificacaoRodada.pdf');
+        const sentMessage = await ctx.replyWithDocument({ source: classificacaoRodadaPath });
+        ctx.session.mensagensIDS.push(sentMessage.message_id);
+    } finally {
+        isSending = false;
+    }
 }
 
 module.exports = {

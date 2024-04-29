@@ -32,22 +32,36 @@ async function apresentarSubMenuAcertoAcumulado(ctx) {
     }
 }
 
+let isSending = false;
+
 async function apresentarPremiacoes(ctx) {
-    const premiacoesPath = path.join(__dirname, 'Premiacoes.pdf');
-    const salvarId = await ctx.replyWithDocument({ source: premiacoesPath });
-    if (salvarId) {
-        mensagensIDS.push(salvarId.message_id);
+    if (isSending) return;
+    isSending = true;
+    try {
+        const premiacoesPath = path.join(__dirname, 'Premiacoes.pdf');
+        const salvarId = await ctx.replyWithDocument({ source: premiacoesPath });
+        if (salvarId) {
+            mensagensIDS.push(salvarId.message_id);
+        }
+        ctx.session.mensagensIDS.push(salvarId.message_id);
+    } finally {
+        isSending = false;
     }
-    ctx.session.mensagensIDS.push(salvarId.message_id);
 }
 
 async function apresentarPlanilhaJogadores(ctx) {
-    const planilhaJogadoresPath = path.join(__dirname, 'PlanilhaJogadores.pdf');
-    const salvarId = await ctx.replyWithDocument({ source: planilhaJogadoresPath });
-    if (salvarId) {
-        mensagensIDS.push(salvarId.message_id);
+    if (isSending) return;
+    isSending = true;
+    try {
+        const planilhaJogadoresPath = path.join(__dirname, 'PlanilhaJogadores.pdf');
+        const salvarId = await ctx.replyWithDocument({ source: planilhaJogadoresPath });
+        if (salvarId) {
+            mensagensIDS.push(salvarId.message_id);
+        }
+        ctx.session.mensagensIDS.push(salvarId.message_id);
+    } finally {
+        isSending = false;
     }
-    ctx.session.mensagensIDS.push(salvarId.message_id);
 }
 
 
