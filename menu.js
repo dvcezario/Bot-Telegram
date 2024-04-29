@@ -167,7 +167,7 @@ async function apresentarInformacoesJogo(ctx) {
 
 
 // Função para apresentar o menu de indicação
-function apresentarMenuLinkIndicacao(ctx) {
+async function apresentarMenuLinkIndicacao(ctx) {
     // Chama a função apresentarLinkIndicacao para obter a mensagem e as variáveis
     const { mensagem, contadorIndicacoes, ultimaIndicacao } = apresentarLinkIndicacao(ctx);
 
@@ -183,7 +183,8 @@ function apresentarMenuLinkIndicacao(ctx) {
                 ]
             },
             parse_mode: 'Markdown'
-        }
+        },
+        await ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id), 
     );
 }
 
@@ -208,6 +209,7 @@ async function apresentarMenuAjuda(ctx) {
                 ]
             }
         });
+        await ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
     } catch (err) {
         if (err.response.error_code !== 400) {
             throw err;

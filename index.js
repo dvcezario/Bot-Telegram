@@ -51,7 +51,35 @@ bot.action('classificacao_geral', apresentarClassificacaoGeral);
 bot.action('classificacao_rodada', apresentarClassificacaoRodada);
 bot.action('resultado_anterior', apresentarResultadoAnterior);
 bot.action('resultado_proximo', apresentarResultadoProximo);
-// bot.action('voltar', apresentarTelaInicial);
+// Adicione este código onde você está configurando os manipuladores de eventos do bot
+bot.action('voltar', async (ctx) => {
+    // Deleta todas as mensagens
+    await deleteAllMessages(ctx);
+
+    // Obtem o objeto 'from' do contexto atual
+    const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
+
+    // Envia a tela inicial
+    await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+        caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
+                    { text: '📊 Resultados', callback_data: 'menu_resultados' }
+                ],
+                [
+                    { text: '🎮 Jogar', callback_data: 'menu_jogar' },
+                    { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
+                ],
+                [
+                    { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
+                    { text: '❓ Ajuda', callback_data: 'ajuda' }
+                ]
+            ]
+        }
+    });
+});
 bot.action('todos_resultados', apresentarTodosResultados);
 bot.action('acerto_acumulado', apresentarSubMenuAcertoAcumulado);
 bot.action('premiacoes', apresentarPremiacoes);
@@ -160,6 +188,8 @@ bot.command('indicacao', async (ctx) => {
             }
         });
         await ctx.session.mensagensIDS.push(salvarId.message_id);
+        console.log('FOOOOOOOOOOOII : ', salvarId.message_id);
+        console.log('MENSAGENS: ', ctx.session.mensagensIDS);
     } finally {
         isSending = false;
     }
