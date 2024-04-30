@@ -1,12 +1,12 @@
 const { Markup } = require('telegraf');
 const axios = require('axios');
 const bot = require('./bot');
+const session = require('telegraf/session');
 const telaInicial = require('./telaInicial'); // Importe a função de apresentar a tela inicial
 // Importa o array para armazrenar os IDs das mensagens
 const { mensagensIDS } = require('./telaInicial');
 
 let ultimoConcursoConsultado; // Variável para armazenar o número do último concurso consultado
-
 
 async function obterUltimoResultado() {
     try {
@@ -30,14 +30,20 @@ async function apresentarTodosResultados(ctx) {
     const formattedResult = formatarResultado(ultimoResultado);
     const buttons = criarBotoesPadrao();
 
-    ctx.editMessageCaption('Informações sobre o concurso:');
+
+    const salvarIdInfo = await ctx.editMessageCaption('Informações sobre o concurso:');
+    if (salvarIdInfo) {
+        ctx.session.mensagensIDS.push(salvarIdInfo.message_id);
+    }
+
     const salvarId = await ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
     if (ctx.message) {
-        mensagensIDS.push(ctx.message.message_id);
+        ctx.session.mensagensIDS.push(ctx.message.message_id);
     }
     if (salvarId) {
-        mensagensIDS.push(salvarId.message_id);
+        ctx.session.mensagensIDS.push(salvarId.message_id);
     }
+
 }
 
 async function apresentarResultadoAnterior(ctx) {
@@ -45,7 +51,7 @@ async function apresentarResultadoAnterior(ctx) {
         const buttons = criarBotoesPadrao();
         const salvarID5 = await ctx.replyWithMarkdown('Não existe concurso anterior.', Markup.inlineKeyboard(buttons));
         if (salvarID5) {
-            mensagensIDS.push(salvarID5.message_id);
+            ctx.session.mensagensIDS.push(salvarID5.message_id);
         }
         return;
     }
@@ -55,7 +61,7 @@ async function apresentarResultadoAnterior(ctx) {
         const buttons = criarBotoesPadrao();
         const salvarId4 = await ctx.replyWithMarkdown('Não existe concurso anterior.', Markup.inlineKeyboard(buttons));
         if (salvarId4) {
-            mensagensIDS.push(salvarId4.message_id);
+            ctx.session.mensagensIDS.push(salvarId4.message_id);
         }
         return;
     }
@@ -65,7 +71,7 @@ async function apresentarResultadoAnterior(ctx) {
     const buttons = criarBotoesPadrao();
     const salvarID3 = await ctx.editMessageText(formattedResult, Markup.inlineKeyboard(buttons));
     if (salvarID3) {
-        mensagensIDS.push(salvarID3.message_id);
+        ctx.session.mensagensIDS.push(salvarID3.message_id);
     }
 }
 
@@ -75,7 +81,7 @@ async function apresentarResultadoProximo(ctx) {
         const buttons = criarBotoesPadrao();
         const salvarID = await ctx.editMessageText(`O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`, Markup.inlineKeyboard(buttons));
         if (salvarID) {
-            mensagensIDS.push(salvarID.message_id);
+            ctx.session.mensagensIDS.push(salvarID.message_id);
         }
         return;
     }
@@ -85,7 +91,7 @@ async function apresentarResultadoProximo(ctx) {
     const buttons = criarBotoesPadrao();
     const salvarId2 = ctx.editMessageText(formattedResult, Markup.inlineKeyboard(buttons));
     if (salvarId2) {
-        mensagensIDS.push(salvarId2.message_id);
+        ctx.session.mensagensIDS.push(salvarId2.message_id);
     }
 }
 
@@ -99,18 +105,19 @@ async function buscarResultadoPorConcurso(ctx) {
     }
     bot.on('text', textListener);
     if (message) {
-        mensagensIDS.push(message.message_id);
+        ctx.session.mensagensIDS.push(message.message_id);
     }
 }
 
- async function textListener(ctx) {
+async function textListener(ctx) {
+    
     const numeroConcurso = parseInt(ctx.message.text.trim(), 10);
-    const resultado = await obterResultadoPorConcurso(numeroConcurso);
+    const resultado = await obterResultadoPorConcurso(numeroConcurso, ctx);
     if (!resultado) {
         const buttons = criarBotoesPadrao();
         const salvarID = await ctx.replyWithMarkdown('Resultado não encontrado para o concurso informado.', Markup.inlineKeyboard(buttons));
         if (salvarID) {
-            mensagensIDS.push(salvarID.message_id);
+            ctx.session.mensagensIDS.push(salvarID.message_id);
         }
         return;
     }
@@ -118,9 +125,9 @@ async function buscarResultadoPorConcurso(ctx) {
     ultimoConcursoConsultado = numeroConcurso;
     const formattedResult = formatarResultado(resultado);
     const buttons = criarBotoesPadrao();
-    const concursoBuscado = ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
+    const concursoBuscado = await ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
     if (concursoBuscado) {
-        mensagensIDS.push(concursoBuscado.message_id);
+        await ctx.session.mensagensIDS.push(concursoBuscado.message_id);
     }
 };
 
@@ -129,13 +136,17 @@ bot.action('resultado_proximo', apresentarResultadoProximo);
 bot.action('buscar_concurso', buscarResultadoPorConcurso);
 bot.action(telaInicial.MENU_INICIAL, telaInicial.apresentarTelaInicial);
 
-async function obterResultadoPorConcurso(concurso) {
+async function obterResultadoPorConcurso(concurso, ctx) {
     try {
         const response = await axios.get(`https://loteriascaixa-api.herokuapp.com/api/megasena/${concurso}`);
         return response.data;
-    } catch (error) {
+    } catch {
         const buttons = criarBotoesPadrao();
-        ctx.replyWithMarkdown('Erro ao obter resultados do concurso ${concurso}:', Markup.inlineKeyboard(buttons));
+        if (ctx.reply) {
+            ctx.reply(`Erro ao obter resultados do concurso ${concurso}:`, Markup.inlineKeyboard(buttons), { parse_mode: 'Markdown' });
+        } else if (ctx.telegram && ctx.telegram.sendMessage) {
+            ctx.telegram.sendMessage(ctx.chat.id, `Erro ao obter resultados do concurso ${concurso}:`, { parse_mode: 'Markdown' });
+        }
         return null;
     }
 }
@@ -164,9 +175,12 @@ function formatarResultado(resultado) {
 
     const numerosSorteados = dezenas.join(' ');
 
-    return `Concurso: ${concurso}
+    const returnConcurso = `Concurso: ${concurso}
 Data: ${data}
 Números sorteados: ${numerosSorteados}`;
+
+    mensagensIDS.push(returnConcurso.message_id);
+    return returnConcurso;
 }
 
 module.exports = {
@@ -179,5 +193,6 @@ module.exports = {
     criarBotoesPadrao,
     formatarResultado,
     ultimoConcursoConsultado,
-    mensagensIDS
+    mensagensIDS,
+    session
 };

@@ -2,13 +2,14 @@
 
 const { Markup } = require('telegraf');
 const path = require('path');
-const { mensagensIDS } = require('./telaInicial');
+const { mensagensIDS, deleteAllMessages } = require('./telaInicial');
 
 // Função para apresentar o submenu "Acerto Acumulado"
 async function apresentarSubMenuAcertoAcumulado(ctx) {
     menuState = MENU_ACERTO_ACUMULADO;
     if (ctx.callbackQuery) {
-        const salvarId = await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+        await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
             reply_markup: {
                 inline_keyboard: [
                     [
@@ -26,28 +27,41 @@ async function apresentarSubMenuAcertoAcumulado(ctx) {
                 ]
             }
         });
-        mensagensIDS.push(salvarId.message_id);
     } else {
         apresentarTelaInicial(ctx);
     }
 }
 
+let isSending = false;
+
 async function apresentarPremiacoes(ctx) {
-    const premiacoesPath = path.join(__dirname, 'Premiacoes.pdf');
-    const salvarId = await ctx.replyWithDocument({ source: premiacoesPath });
-    if (salvarId) {
-        mensagensIDS.push(salvarId.message_id);
+    if (isSending) return;
+    isSending = true;
+    try {
+        const premiacoesPath = path.join(__dirname, 'Premiacoes.pdf');
+        const salvarId = await ctx.replyWithDocument({ source: premiacoesPath });
+        if (salvarId) {
+            mensagensIDS.push(salvarId.message_id);
+        }
+        ctx.session.mensagensIDS.push(salvarId.message_id);
+    } finally {
+        isSending = false;
     }
-    mensagensIDS.push(salvarId.message_id);
 }
 
 async function apresentarPlanilhaJogadores(ctx) {
-    const planilhaJogadoresPath = path.join(__dirname, 'PlanilhaJogadores.pdf');
-    const salvarId = await ctx.replyWithDocument({ source: planilhaJogadoresPath });
-    if (salvarId) {
-        mensagensIDS.push(salvarId.message_id);
+    if (isSending) return;
+    isSending = true;
+    try {
+        const planilhaJogadoresPath = path.join(__dirname, 'PlanilhaJogadores.pdf');
+        const salvarId = await ctx.replyWithDocument({ source: planilhaJogadoresPath });
+        if (salvarId) {
+            mensagensIDS.push(salvarId.message_id);
+        }
+        ctx.session.mensagensIDS.push(salvarId.message_id);
+    } finally {
+        isSending = false;
     }
-    mensagensIDS.push(salvarId.message_id);
 }
 
 
