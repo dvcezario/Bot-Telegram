@@ -56,7 +56,15 @@ async function validatePhoneNumber(ctx) {
             mensagemEscolhaNumerosId = messageId;
 
         } else {
-            const salvarID3 = await ctx.reply('Número inválido. Por favor, digite um número válido.');
+            const salvarID3 = await ctx.reply('Número inválido. Por favor, digite um número válido.', {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '🏠 Menu Inicial', callback_data: 'voltar' }
+                        ]
+                    ]
+                }
+            });
             await ctx.session.mensagensIDS.push(salvarID3.message_id);
         }
     });
@@ -67,8 +75,7 @@ async function deleteNumericKeyboard(ctx, messageId) {
         // Exclui a mensagem anterior junto com o teclado criado
         await ctx.deleteMessage(messageId);
         console.log("Teclado numérico excluído com sucesso.");
-    } catch (error) {
-        console.error("Erro ao excluir teclado numérico:", error);
+    } catch {
     }
 }
 
@@ -91,7 +98,6 @@ function createNumericKeyboard(ctx, selectedNumbers) {
 
 // Função para lidar com o botão voltar
 bot.action('voltar', async (ctx) => {
-    console.log("Botão 'Voltar' pressionado. Manipulador de eventos 'voltar' acionado.");
 
     // Deleta todas as mensagens
     await deleteAllMessages(ctx);
@@ -129,12 +135,35 @@ bot.action('voltar', async (ctx) => {
         // Limpa o ID da mensagem após excluir
         mensagemEscolhaNumerosId = null;
     } else {
-        console.log("Mensagem 'Escolha 10 números' não encontrada.");
+         // Define o from
+         const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
+
+         // Envia a mensagem do menu inicial.
+         const sentMessage2 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+             caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
+             reply_markup: {
+                 inline_keyboard: [
+                     [
+                         { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
+                         { text: '📊 Resultados', callback_data: 'menu_resultados' }
+                     ],
+                     [
+                         { text: '🎮 Jogar', callback_data: 'menu_jogar' },
+                         { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
+                     ],
+                     [
+                         { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
+                         { text: '❓ Ajuda', callback_data: 'ajuda' }
+                     ]
+                 ]
+             }
+         });
+         ctx.session.mensagensIDS.push(sentMessage2.message_id);
     }
 });
 
 // Função para lidar com a seleção de números
-bot.action(/^[1-9]\d*$/, (ctx) => {
+bot.action(/^[1-9]\d*$/, async (ctx) => {
     const number = parseInt(ctx.match[0]);
     const index = selectedNumbers.indexOf(number);
     if (index === -1) {
@@ -147,24 +176,27 @@ bot.action(/^[1-9]\d*$/, (ctx) => {
         selectedNumbers.splice(index, 1);
     }
     // Atualiza o teclado com os números selecionados
-    (async () => {
-        const keyboardData = await createNumericKeyboard();
-        const keyboard = keyboardData.map(row => {
-            return row.map(button => {
-                if (selectedNumbers.includes(parseInt(button.callback_data))) {
-                    // Muda a cor do botão se estiver selecionado
-                    return Markup.button.callback(`${button.callback_data} ✅`, `${button.callback_data}`);
-                } else {
-                    return button;
-                }
-            });
+    const keyboardData = await createNumericKeyboard();
+    const keyboard = keyboardData.map(row => {
+        return row.map(button => {
+            if (selectedNumbers.includes(parseInt(button.callback_data))) {
+                // Muda a cor do botão se estiver selecionado
+                return Markup.button.callback(`${button.callback_data} ✅`, `${button.callback_data}`);
+            } else {
+                return button;
+            }
         });
-        const salvarId5 = await ctx.editMessageText('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
-        ctx.session.mensagensIDS.push(salvarId5.message_id);
-        console.log('ESCOLHA MSG ', salvarId5.message_id);
-        console.log('ATUALIZADO ', ctx.session.mensagensIDS);
+    });
 
-    })();
+    // Verifica se o teclado mudou
+    const keyboardChanged = JSON.stringify(keyboard) !== JSON.stringify(ctx.session.lastKeyboard);
+    if (!keyboardChanged) {
+        return;
+    }
+
+    const salvarId5 = await ctx.editMessageText('Escolha os seus 10 números:', Markup.inlineKeyboard(keyboard));
+    ctx.session.mensagensIDS.push(salvarId5.message_id);
+    ctx.session.lastKeyboard = keyboard;
 });
 
 // Função para lidar com o botão confirmar
@@ -190,6 +222,12 @@ bot.action('confirmar', async (ctx) => { // Adicione async aqui para poder usar 
 bot.action('confirmar_Numeros', async (ctx) => {
     // Apaga todas as mensagens anteriores
     await deleteAllMessages(ctx);
+
+    // Chama a função de deletar Keyboard
+    if (mensagemEscolhaNumerosId) {
+        await deleteNumericKeyboard(ctx, mensagemEscolhaNumerosId);
+        mensagemEscolhaNumerosId = null;
+    }
 
     if (selectedNumbers.length === 10) {
         try {
@@ -371,5 +409,6 @@ module.exports = {
     gerarQRCodePix,
     inserirIDPagamentoNaPlanilha,
     deleteAllMessages,
-    bot
+    bot,
+    deleteNumericKeyboard
 };
