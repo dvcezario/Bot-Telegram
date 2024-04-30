@@ -16,7 +16,8 @@ let selectedNumbers = [];
 let userPhoneNumber = ''; // Variável global para armazenar o número de telefone
 let idUnicoGlobal;
 let qrCodeDataGlobal;
-
+// Variável para armazenar o message_id da mensagem "Escolha 10 números"
+let mensagemEscolhaNumerosId;
 
 
 
@@ -45,11 +46,14 @@ async function validatePhoneNumber(ctx) {
             // Após a validação bem-sucedida, chama a função createNumericKeyboard
             const selectedNumbers = []; // Substitua isso pela lista de números selecionados
             const keyboard = await createNumericKeyboard(ctx, selectedNumbers);
-            let message = await ctx.reply('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
+            let message = await ctx.reply('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
             let messageId = message.message_id;
             await ctx.session.mensagensIDS.push(messageId);
             console.log('Message ID: ', messageId);  // Verifique o ID da mensagem
             console.log(ctx.session.mensagensIDS);
+
+            // Armazena o message_id da mensagem "Escolha 10 números"
+            mensagemEscolhaNumerosId = messageId;
 
         } else {
             const salvarID3 = await ctx.reply('Número inválido. Por favor, digite um número válido.');
@@ -57,11 +61,19 @@ async function validatePhoneNumber(ctx) {
         }
     });
 }
-
-
+// Função para excluir o teclado numérico junto com a mensagem "Escolha 10 números"
+async function deleteNumericKeyboard(ctx, messageId) {
+    try {
+        // Exclui a mensagem anterior junto com o teclado criado
+        await ctx.deleteMessage(messageId);
+        console.log("Teclado numérico excluído com sucesso.");
+    } catch (error) {
+        console.error("Erro ao excluir teclado numérico:", error);
+    }
+}
 
 // Função para criar o teclado numérico com 12 linhas e 5 colunas
-async function createNumericKeyboard(ctx, selectedNumbers) {
+function createNumericKeyboard(ctx, selectedNumbers) {
     const keyboard = [];
     let row = [];
     for (let i = 1; i <= 60; i++) {
@@ -77,34 +89,48 @@ async function createNumericKeyboard(ctx, selectedNumbers) {
     return keyboard;
 }
 
-// Adicione este código onde você está configurando os manipuladores de eventos do bot
+// Função para lidar com o botão voltar
 bot.action('voltar', async (ctx) => {
+    console.log("Botão 'Voltar' pressionado. Manipulador de eventos 'voltar' acionado.");
+
     // Deleta todas as mensagens
     await deleteAllMessages(ctx);
 
-    // Obtem o objeto 'from' do contexto atual
-    const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
+    // Deleta apenas o teclado numérico junto com a mensagem "Escolha 10 números"
+    if (mensagemEscolhaNumerosId) {
+        // Chama a função para excluir o teclado numérico
+        await deleteNumericKeyboard(ctx, mensagemEscolhaNumerosId);
 
-    // Envia a tela inicial
-    await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
-        caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
-                    { text: '📊 Resultados', callback_data: 'menu_resultados' }
-                ],
-                [
-                    { text: '🎮 Jogar', callback_data: 'menu_jogar' },
-                    { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
-                ],
-                [
-                    { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
-                    { text: '❓ Ajuda', callback_data: 'ajuda' }
+        // Define o from
+        const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
+
+        // Envia a mensagem do menu inicial.
+        const sentMessage2 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+            caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
+                        { text: '📊 Resultados', callback_data: 'menu_resultados' }
+                    ],
+                    [
+                        { text: '🎮 Jogar', callback_data: 'menu_jogar' },
+                        { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
+                    ],
+                    [
+                        { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
+                        { text: '❓ Ajuda', callback_data: 'ajuda' }
+                    ]
                 ]
-            ]
-        }
-    });
+            }
+        });
+        ctx.session.mensagensIDS.push(sentMessage2.message_id);
+
+        // Limpa o ID da mensagem após excluir
+        mensagemEscolhaNumerosId = null;
+    } else {
+        console.log("Mensagem 'Escolha 10 números' não encontrada.");
+    }
 });
 
 // Função para lidar com a seleção de números
@@ -134,7 +160,10 @@ bot.action(/^[1-9]\d*$/, (ctx) => {
             });
         });
         const salvarId5 = await ctx.editMessageText('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
-        await ctx.session.mensagensIDS.push(salvarId5.message_id);
+        ctx.session.mensagensIDS.push(salvarId5.message_id);
+        console.log('ESCOLHA MSG ', salvarId5.message_id);
+        console.log('ATUALIZADO ', ctx.session.mensagensIDS);
+
     })();
 });
 
@@ -159,8 +188,10 @@ bot.action('confirmar', async (ctx) => { // Adicione async aqui para poder usar 
 });
 
 bot.action('confirmar_Numeros', async (ctx) => {
+    // Apaga todas as mensagens anteriores
+    await deleteAllMessages(ctx);
+
     if (selectedNumbers.length === 10) {
-        await deleteAllMessages(ctx);
         try {
             await salvarNumerosSelecionados(selectedNumbers, ctx);
             const { id, qrCodeData, qrCodeBase64 } = await gerarQRCodePix();

@@ -70,20 +70,28 @@ async function apresentarTelaInicial(ctx) {
 }
 
 async function deleteAllMessages(ctx) {
-    try {
-        for (let i = ctx.session.mensagensIDS.length - 1; i >= 0; i--) {
-            const id = ctx.session.mensagensIDS[i];
-            try {
-                if (id && ctx.session.mensagensIDS.includes(id)) {
-                    await ctx.telegram.deleteMessage(ctx.chat.id, id);
-                    ctx.session.mensagensIDS.splice(i, 1);
-                }
-            } catch {
+    // Certifique-se de que ctx.session.mensagensIDS é um array
+    if (!Array.isArray(ctx.session.mensagensIDS)) {
+        console.error('ctx.session.mensagensIDS não é um array');
+        return;
+    }
+
+    // Exclua todas as mensagens em ctx.session.mensagensIDS
+    for (let i = ctx.session.mensagensIDS.length - 1; i >= 0; i--) {
+        const id = ctx.session.mensagensIDS[i];
+        try {
+            await ctx.telegram.deleteMessage(ctx.chat.id, id);
+            ctx.session.mensagensIDS.splice(i, 1);
+        } catch (error) {
+            // Ignore o erro "message to delete not found"
+            if (!error.message.includes('message to delete not found')) {
+                console.error(`Falha ao excluir a mensagem com ID ${id}: ${error}`);
             }
         }
-        ctx.session.mensagensIDS = [];
-    } catch {
     }
+
+    // Limpe ctx.session.mensagensIDS
+    ctx.session.mensagensIDS = [];
 }
 
 module.exports = {
