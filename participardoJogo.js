@@ -19,8 +19,6 @@ let qrCodeDataGlobal;
 // Variável para armazenar o message_id da mensagem "Escolha 10 números"
 let mensagemEscolhaNumerosId;
 
-
-
 // Função para validar o número de telefone
 function isValidPhoneNumber(phoneNumber) {
     // Expressão regular para o padrão xx yyyyyyyyy ou xxyyyyyyyyy
@@ -30,45 +28,79 @@ function isValidPhoneNumber(phoneNumber) {
 
 // Função para lidar com a validação do número de telefone
 async function validatePhoneNumber(ctx) {
+    // Inicializa ctx.session.awaitingPhoneNumber
+    ctx.session.awaitingPhoneNumber = true;
+
     // Pergunta ao usuário para digitar o número de telefone
     const salvarId = await ctx.editMessageCaption('Ficaremos felizes em entrar em contato contigo, caso seja um ganhador! Para isso, digite seu número de telefone com o DDD.');
     await ctx.session.mensagensIDS.push(salvarId.message_id);
-
-    bot.on('text', async (msg) => { // Torna a função de callback assíncrona
-        const response = msg.text.trim();
-        if (isValidPhoneNumber(response)) {
-            // Após a validação bem-sucedida, armazena o número de telefone na variável global
-            userPhoneNumber = response;
-
-            // Deleta todas as mensagens anteriores
-            await deleteAllMessages(ctx);
-
-            // Após a validação bem-sucedida, chama a função createNumericKeyboard
-            const selectedNumbers = []; // Substitua isso pela lista de números selecionados
-            const keyboard = await createNumericKeyboard(ctx, selectedNumbers);
-            let message = await ctx.reply('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
-            let messageId = message.message_id;
-            await ctx.session.mensagensIDS.push(messageId);
-            console.log('Message ID: ', messageId);  // Verifique o ID da mensagem
-            console.log(ctx.session.mensagensIDS);
-
-            // Armazena o message_id da mensagem "Escolha 10 números"
-            mensagemEscolhaNumerosId = messageId;
-
-        } else {
-            const salvarID3 = await ctx.reply('Número inválido. Por favor, digite um número válido.', {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: '🏠 Menu Inicial', callback_data: 'voltar' }
-                        ]
-                    ]
-                }
-            });
-            await ctx.session.mensagensIDS.push(salvarID3.message_id);
-        }
-    });
+    ctx.session.awaitingPhoneNumber = true;
 }
+
+bot.on('text', async (ctx) => { // Torna a função de callback assíncrona
+    const response = ctx.message.text.trim();
+
+    if (isValidPhoneNumber(response) && ctx.session.awaitingPhoneNumber) {
+        // Após a validação bem-sucedida, armazena o número de telefone na variável global
+        userPhoneNumber = response;
+        
+        // Deleta todas as mensagens anteriores
+        await deleteAllMessages(ctx);
+        
+        // Após a validação bem-sucedida, chama a função createNumericKeyboard
+        const selectedNumbers = []; // Substitua isso pela lista de números selecionados
+        const keyboard = await createNumericKeyboard(ctx, selectedNumbers);
+        let message = await ctx.reply('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
+        let messageId = message.message_id;
+        await ctx.session.mensagensIDS.push(messageId);
+        console.log('Message ID: ', messageId);  // Verifique o ID da mensagem
+        console.log(ctx.session.mensagensIDS);
+
+        // Armazena o message_id da mensagem "Escolha 10 números"
+        mensagemEscolhaNumerosId = messageId;
+        ctx.session.awaitingPhoneNumber = false;
+        
+    } else if (ctx.session.awaitingPhoneNumber && !isValidPhoneNumber(response)) {
+        const salvarID3 = await ctx.reply('Número inválido. Por favor, digite um número válido.', {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🏠 Menu Inicial', callback_data: 'voltar' }
+                    ]
+                ]
+            }
+        });
+        await ctx.session.mensagensIDS.push(salvarID3.message_id);
+    }
+
+    else{
+        // Define o from
+        const from = ctx.message.from;
+
+        // Envia a tela inicial
+        await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+            caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
+                        { text: '📊 Resultados', callback_data: 'menu_resultados' }
+                    ],
+                    [
+                        { text: '🎮 Jogar', callback_data: 'menu_jogar' },
+                        { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
+                    ],
+                    [
+                        { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
+                        { text: '❓ Ajuda', callback_data: 'ajuda' }
+                    ]
+                ]
+            }
+        });
+
+    }
+});
+
 // Função para excluir o teclado numérico junto com a mensagem "Escolha 10 números"
 async function deleteNumericKeyboard(ctx, messageId) {
     try {
@@ -135,30 +167,30 @@ bot.action('voltar', async (ctx) => {
         // Limpa o ID da mensagem após excluir
         mensagemEscolhaNumerosId = null;
     } else {
-         // Define o from
-         const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
+        // Define o from
+        const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
 
-         // Envia a mensagem do menu inicial.
-         const sentMessage2 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
-             caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
-             reply_markup: {
-                 inline_keyboard: [
-                     [
-                         { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
-                         { text: '📊 Resultados', callback_data: 'menu_resultados' }
-                     ],
-                     [
-                         { text: '🎮 Jogar', callback_data: 'menu_jogar' },
-                         { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
-                     ],
-                     [
-                         { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
-                         { text: '❓ Ajuda', callback_data: 'ajuda' }
-                     ]
-                 ]
-             }
-         });
-         ctx.session.mensagensIDS.push(sentMessage2.message_id);
+        // Envia a mensagem do menu inicial.
+        const sentMessage2 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+            caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
+                        { text: '📊 Resultados', callback_data: 'menu_resultados' }
+                    ],
+                    [
+                        { text: '🎮 Jogar', callback_data: 'menu_jogar' },
+                        { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
+                    ],
+                    [
+                        { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
+                        { text: '❓ Ajuda', callback_data: 'ajuda' }
+                    ]
+                ]
+            }
+        });
+        ctx.session.mensagensIDS.push(sentMessage2.message_id);
     }
 });
 
