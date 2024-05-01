@@ -43,23 +43,21 @@ bot.on('text', async (ctx) => { // Torna a função de callback assíncrona
     if (isValidPhoneNumber(response) && ctx.session.awaitingPhoneNumber) {
         // Após a validação bem-sucedida, armazena o número de telefone na variável global
         userPhoneNumber = response;
-        
+
         // Deleta todas as mensagens anteriores
         await deleteAllMessages(ctx);
-        
+
         // Após a validação bem-sucedida, chama a função createNumericKeyboard
         const selectedNumbers = []; // Substitua isso pela lista de números selecionados
         const keyboard = await createNumericKeyboard(ctx, selectedNumbers);
         let message = await ctx.reply('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
         let messageId = message.message_id;
         await ctx.session.mensagensIDS.push(messageId);
-        console.log('Message ID: ', messageId);  // Verifique o ID da mensagem
-        console.log(ctx.session.mensagensIDS);
 
         // Armazena o message_id da mensagem "Escolha 10 números"
         mensagemEscolhaNumerosId = messageId;
         ctx.session.awaitingPhoneNumber = false;
-        
+
     } else if (ctx.session.awaitingPhoneNumber && !isValidPhoneNumber(response)) {
         const salvarID3 = await ctx.reply('Número inválido. Por favor, digite um número válido.', {
             reply_markup: {
@@ -73,7 +71,7 @@ bot.on('text', async (ctx) => { // Torna a função de callback assíncrona
         await ctx.session.mensagensIDS.push(salvarID3.message_id);
     }
 
-    else{
+    else {
         // Define o from
         const from = ctx.message.from;
 
@@ -106,7 +104,6 @@ async function deleteNumericKeyboard(ctx, messageId) {
     try {
         // Exclui a mensagem anterior junto com o teclado criado
         await ctx.deleteMessage(messageId);
-        console.log("Teclado numérico excluído com sucesso.");
     } catch {
     }
 }
@@ -197,21 +194,24 @@ bot.action('voltar', async (ctx) => {
 // Função para lidar com a seleção de números
 bot.action(/^[1-9]\d*$/, async (ctx) => {
     const number = parseInt(ctx.match[0]);
-    const index = selectedNumbers.indexOf(number);
+    if (!ctx.session.selectedNumbers) {
+        ctx.session.selectedNumbers = [];
+    }
+    const index = ctx.session.selectedNumbers.indexOf(number);
     if (index === -1) {
         // Adiciona o número selecionado
-        if (selectedNumbers.length < 10) {
-            selectedNumbers.push(number);
+        if (ctx.session.selectedNumbers.length < 10) {
+            ctx.session.selectedNumbers.push(number);
         }
     } else {
         // Remove o número deselecionado
-        selectedNumbers.splice(index, 1);
+        ctx.session.selectedNumbers.splice(index, 1);
     }
     // Atualiza o teclado com os números selecionados
     const keyboardData = await createNumericKeyboard();
     const keyboard = keyboardData.map(row => {
         return row.map(button => {
-            if (selectedNumbers.includes(parseInt(button.callback_data))) {
+            if (ctx.session.selectedNumbers.includes(parseInt(button.callback_data))) {
                 // Muda a cor do botão se estiver selecionado
                 return Markup.button.callback(`${button.callback_data} ✅`, `${button.callback_data}`);
             } else {
@@ -219,37 +219,67 @@ bot.action(/^[1-9]\d*$/, async (ctx) => {
             }
         });
     });
-
-    // Verifica se o teclado mudou
-    const keyboardChanged = JSON.stringify(keyboard) !== JSON.stringify(ctx.session.lastKeyboard);
-    if (!keyboardChanged) {
-        return;
-    }
-
+    // Restante do código...
     const salvarId5 = await ctx.editMessageText('Escolha os seus 10 números:', Markup.inlineKeyboard(keyboard));
     ctx.session.mensagensIDS.push(salvarId5.message_id);
     ctx.session.lastKeyboard = keyboard;
 });
 
-// Função para lidar com o botão confirmar
-bot.action('confirmar', async (ctx) => { // Adicione async aqui para poder usar await
+// Função para lidar com a ação confirmar
+async function handleConfirmAction(ctx) {
     await deleteAllMessages(ctx);
-    if (selectedNumbers.length === 10) {
+    if (ctx.session.selectedNumbers.length === 10) {
         // Adiciona botões confirmar_Numeros e alterar_Numeros
         const confirm_NumerosButton = Markup.button.callback('Confirmar Números', 'confirmar_Numeros');
         const alterar_NumerosButton = Markup.button.callback('Alterar Números', 'alterar_Numeros');
         const keyboard = [[confirm_NumerosButton, alterar_NumerosButton]];
-        const salvarId = await ctx.reply(`Confirme os Números Selecionados: \n${selectedNumbers.sort((a, b) => a - b).join('  ')}`, Markup.inlineKeyboard(keyboard));
+        const salvarId = await ctx.reply(`Confirme os Números Selecionados: \n${ctx.session.selectedNumbers.sort((a, b) => a - b).join('  ')}`, Markup.inlineKeyboard(keyboard));
         if (salvarId && salvarId.message_id) {
             ctx.session.mensagensIDS.push(salvarId.message_id);
         }
     } else {
-        const salvarId = await ctx.reply('Por favor, selecione exatamente 10 números.'); // Use await aqui
+
+        const number = parseInt(ctx.match[0]);
+        if (!ctx.session.selectedNumbers) {
+            ctx.session.selectedNumbers = [];
+        }
+        const index = ctx.session.selectedNumbers.indexOf(number);
+        if (index === -1) {
+            // Adiciona o número selecionado
+            if (ctx.session.selectedNumbers.length < 10) {
+                ctx.session.selectedNumbers.push(number);
+            }
+        } else {
+            // Remove o número deselecionado
+            ctx.session.selectedNumbers.splice(index, 1);
+        }
+
+        // Atualiza o teclado com os números selecionados
+        const keyboardData = await createNumericKeyboard();
+        const keyboard = keyboardData.map(row => {
+            return row.map(button => {
+                if (ctx.session.selectedNumbers.includes(parseInt(button.callback_data))) {
+                    // Muda a cor do botão se estiver selecionado
+                    return Markup.button.callback(`${button.callback_data} ✅`, `${button.callback_data}`);
+                } else {
+                    return button;
+                }
+            });
+        });
+        const salvarId = await ctx.reply('Por favor selecione exatamente 10 números:', Markup.inlineKeyboard(keyboard));
         if (salvarId && salvarId.message_id) {
             ctx.session.mensagensIDS.push(salvarId.message_id);
         }
+        // Se um número válido foi selecionado, chame a função handleConfirmAction novamente
+        if (ctx.session.selectedNumbers.length === 10) {
+            await handleConfirmAction(ctx);
+        }
     }
-});
+}
+
+// Ação do bot para confirmar
+bot.action('confirmar', handleConfirmAction);
+
 
 bot.action('confirmar_Numeros', async (ctx) => {
     // Apaga todas as mensagens anteriores
@@ -261,9 +291,9 @@ bot.action('confirmar_Numeros', async (ctx) => {
         mensagemEscolhaNumerosId = null;
     }
 
-    if (selectedNumbers.length === 10) {
+    if (ctx.session.selectedNumbers.length === 10) {
         try {
-            await salvarNumerosSelecionados(selectedNumbers, ctx);
+            await salvarNumerosSelecionados(ctx.session.selectedNumbers, ctx);
             const { id, qrCodeData, qrCodeBase64 } = await gerarQRCodePix();
             await inserirIDPagamentoNaPlanilha(id);
             const salvarId = await ctx.replyWithPhoto({ source: 'Logo3.jpg' });

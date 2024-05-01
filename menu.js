@@ -224,6 +224,7 @@ function apresentarSubMenuAcertoAcumulado(ctx) {
     menuState = MENU_ACERTO_ACUMULADO;
     if (ctx.callbackQuery) {
         try {
+    
             ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado:', {
                 reply_markup: {
                     inline_keyboard: [
