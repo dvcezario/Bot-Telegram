@@ -25,7 +25,9 @@ const { enviarVideoExplicativo, enviarTextoExplicativo, enviarInformacoesPagamen
 const mercadopago = require('./mercadopago');
 const { mensagensIDS } = require('./telaInicial');
 
-
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 
 bot.start(async (ctx, next) => {

@@ -5,7 +5,7 @@ const session = require('telegraf/session');
 const telaInicial = require('./telaInicial'); // Importe a função de apresentar a tela inicial
 // Importa o array para armazrenar os IDs das mensagens
 const { mensagensIDS } = require('./telaInicial');
-let aguardandoNumeroConcurso = false;
+
 let ultimoConcursoConsultado; // Variável para armazenar o número do último concurso consultado
 
 async function obterUltimoResultado() {
@@ -32,6 +32,7 @@ async function apresentarTodosResultados(ctx) {
 
 
     const salvarIdInfo = await ctx.editMessageCaption('Informações sobre o concurso:');
+    setTimeout(() => {}, 1000);
     if (salvarIdInfo) {
         ctx.session.mensagensIDS.push(salvarIdInfo.message_id);
     }
@@ -83,6 +84,7 @@ async function apresentarResultadoProximo(ctx) {
         if (salvarID) {
             ctx.session.mensagensIDS.push(salvarID.message_id);
         }
+        setTimeout(() => {}, 1000);
         return;
     }
 
@@ -95,9 +97,6 @@ async function apresentarResultadoProximo(ctx) {
     }
 }
 
-// Fora da função buscarResultadoPorConcurso
-bot.on('text', textListener);
-
 // Função para buscar resultado por concurso
 async function buscarResultadoPorConcurso(ctx) {
     let message;
@@ -106,39 +105,35 @@ async function buscarResultadoPorConcurso(ctx) {
     } else if (ctx.callbackQuery.message.photo) {
         message = await ctx.editMessageCaption('Por favor, digite o número do concurso:');
     }
+    bot.on('text', textListener);
     if (message) {
         ctx.session.mensagensIDS.push(message.message_id);
-        aguardandoNumeroConcurso = true; // Atualize a variável de estado
     }
+    setTimeout(() => {}, 1000);
 }
 
 async function textListener(ctx) {
-    try {
-        if (aguardandoNumeroConcurso) {
-            const numeroConcurso = parseInt(ctx.message.text.trim(), 10);
-            const resultado = await obterResultadoPorConcurso(numeroConcurso, ctx);
-            if (!resultado) {
-                const buttons = criarBotoesPadrao();
-                const salvarID = await ctx.replyWithMarkdown('Resultado não encontrado para o concurso informado.', Markup.inlineKeyboard(buttons));
-                if (salvarID) {
-                    ctx.session.mensagensIDS.push(salvarID.message_id);
-                }
-                return;
-            }
-
-            ultimoConcursoConsultado = numeroConcurso;
-            const formattedResult = formatarResultado(resultado);
-            const buttons = criarBotoesPadrao();
-            const concursoBuscado = await ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
-            if (concursoBuscado) {
-                await ctx.session.mensagensIDS.push(concursoBuscado.message_id);
-            }
+    
+    const numeroConcurso = parseInt(ctx.message.text.trim(), 10);
+    const resultado = await obterResultadoPorConcurso(numeroConcurso, ctx);
+    if (!resultado) {
+        const buttons = criarBotoesPadrao();
+        const salvarID = await ctx.replyWithMarkdown('Resultado não encontrado para o concurso informado.', Markup.inlineKeyboard(buttons));
+        if (salvarID) {
+            ctx.session.mensagensIDS.push(salvarID.message_id);
         }
-    } catch (error) {
-        console.error('Erro em textListener:', error);
+        setTimeout(() => {}, 1000);
+        return;
     }
-}
 
+    ultimoConcursoConsultado = numeroConcurso;
+    const formattedResult = formatarResultado(resultado);
+    const buttons = criarBotoesPadrao();
+    const concursoBuscado = await ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
+    if (concursoBuscado) {
+        await ctx.session.mensagensIDS.push(concursoBuscado.message_id);
+    }
+};
 
 bot.action('resultado_anterior', apresentarResultadoAnterior);
 bot.action('resultado_proximo', apresentarResultadoProximo);
@@ -152,11 +147,16 @@ async function obterResultadoPorConcurso(concurso, ctx) {
     } catch {
         const buttons = criarBotoesPadrao();
         if (ctx.reply) {
-            ctx.reply(`Erro ao obter resultados do concurso ${concurso}:`, Markup.inlineKeyboard(buttons), { parse_mode: 'Markdown' });
+            console.log('Erro vindo da API, ao buscar resultado do concurso.')
+            // const message2 = ctx.reply(`Erro ao obter resultados do concurso ${concurso}:`, Markup.inlineKeyboard(buttons), { parse_mode: 'Markdown' });
+            // ctx.session.mensagensIDS.push(message2.message_id);
         } else if (ctx.telegram && ctx.telegram.sendMessage) {
-            ctx.telegram.sendMessage(ctx.chat.id, `Erro ao obter resultados do concurso ${concurso}:`, { parse_mode: 'Markdown' });
+            console.log('Erro vindo da API, ao buscar resultado do concurso.')
+            // const message1 = ctx.telegram.sendMessage(ctx.chat.id, `Erro ao obter resultados do concurso ${concurso}:`, { parse_mode: 'Markdown' });
+            // ctx.session.mensagensIDS.push(message1.message_id);
         }
-        return 'Olá';
+        setTimeout(() => {}, 1000);
+        return null;
     }
 }
 
@@ -189,6 +189,7 @@ Data: ${data}
 Números sorteados: ${numerosSorteados}`;
 
     mensagensIDS.push(returnConcurso.message_id);
+    setTimeout(() => {}, 1000);
     return returnConcurso;
 }
 
