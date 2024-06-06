@@ -53,6 +53,7 @@ function apresentarMenuResultados(ctx) {
             }
         });
         ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+        console.log(ctx.session.mensagensIDS);
     } else {
         apresentarTelaInicial(ctx);
     }

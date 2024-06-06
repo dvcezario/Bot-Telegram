@@ -188,7 +188,8 @@ function formatarResultado(resultado) {
 Data: ${data}
 Números sorteados: ${numerosSorteados}`;
 
-    mensagensIDS.push(returnConcurso.message_id);
+    mensagensIDS.push(returnConcurso.message_id); // sempre vem undefined pois retorna uma string e não uma mensagem do telegram, logo não tem id
+    console.log(mensagensIDS);
     setTimeout(() => {}, 1000);
     return returnConcurso;
 }

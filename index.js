@@ -101,10 +101,15 @@ bot.command('classificacao', async (ctx) => {
     if (isSending) return;
     isSending = true;
     try {
-        if (mensagensIDS.length > 0) {
-            await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[0]);
-            mensagensIDS.shift();
+        // Iterar sobre o array mensagensIDS e deletar cada mensagem
+        while (mensagensIDS.length > 0) {
+            const messageId = mensagensIDS.shift();
+            if (messageId) {
+                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
+            }
         }
+        // Deleta todas as mensagens
+        await deleteAllMessages(ctx);
         const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
@@ -132,10 +137,15 @@ bot.command('jogar', async (ctx) => {
     if (isSending) return;
     isSending = true;
     try {
-        if (mensagensIDS.length > 0) {
-            await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[0]);
-            mensagensIDS.shift();
+        // Iterar sobre o array mensagensIDS e deletar cada mensagem
+        while (mensagensIDS.length > 0) {
+            const messageId = mensagensIDS.shift();
+            if (messageId) {
+                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
+            }
         }
+        // Deleta todas as mensagens
+        await deleteAllMessages(ctx);
         const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
@@ -165,10 +175,15 @@ bot.command('indicacao', async (ctx) => {
     if (isSending) return;
     isSending = true;
     try {
-        if (mensagensIDS.length > 0) {
-            await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[0]);
-            mensagensIDS.shift();
+        // Iterar sobre o array mensagensIDS e deletar cada mensagem
+        while (mensagensIDS.length > 0) {
+            const messageId = mensagensIDS.shift();
+            if (messageId) {
+                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
+            }
         }
+        // Deleta todas as mensagens
+        await deleteAllMessages(ctx);
         const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
 
@@ -190,8 +205,6 @@ bot.command('indicacao', async (ctx) => {
             }
         });
         await ctx.session.mensagensIDS.push(salvarId.message_id);
-        console.log('FOOOOOOOOOOOII : ', salvarId.message_id);
-        console.log('MENSAGENS: ', ctx.session.mensagensIDS);
     } finally {
         isSending = false;
     }
@@ -202,10 +215,15 @@ bot.command('ajuda', async (ctx) => {
     if (isSending) return;
     isSending = true;
     try {
-        if (mensagensIDS.length > 0) {
-            await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[0]);
-            mensagensIDS.shift();
+        // Iterar sobre o array mensagensIDS e deletar cada mensagem
+        while (mensagensIDS.length > 0) {
+            const messageId = mensagensIDS.shift();
+            if (messageId) {
+                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
+            }
         }
+        // Deleta todas as mensagens
+        await deleteAllMessages(ctx);
         const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
@@ -235,10 +253,15 @@ bot.command('informacoes', async (ctx) => {
     if (isSending) return;
     isSending = true;
     try {
-        if (mensagensIDS.length > 0) {
-            await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[0]);
-            mensagensIDS.shift();
+        // Iterar sobre o array mensagensIDS e deletar cada mensagem
+        while (mensagensIDS.length > 0) {
+            const messageId = mensagensIDS.shift();
+            if (messageId) {
+                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
+            }
         }
+        // Deleta todas as mensagens
+        await deleteAllMessages(ctx);
         const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
@@ -270,10 +293,16 @@ bot.command('resultados', async (ctx) => {
     if (isSending) return;
     isSending = true;
     try {
-        if (mensagensIDS.length > 0) {
-            await ctx.telegram.deleteMessage(ctx.chat.id, mensagensIDS[0]);
-            mensagensIDS.shift();
+        // Iterar sobre o array mensagensIDS e deletar cada mensagem
+        while (mensagensIDS.length > 0) {
+            console.log(ctx.session.mensagensIDS)
+            const messageId = mensagensIDS.shift();
+            if (messageId) {
+                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
+            }
         }
+        // Deleta todas as mensagens
+        await deleteAllMessages(ctx);
         const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
@@ -295,17 +324,6 @@ bot.command('resultados', async (ctx) => {
         isSending = false;
     }
 });
-
-
-
-
-
-
-
-
-
-
-
 
 bot.action('participar_jogo', (ctx) => {
     validatePhoneNumber(ctx, ctx.from.phone_number);
