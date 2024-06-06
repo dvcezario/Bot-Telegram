@@ -60,6 +60,10 @@ async function validatePhoneNumber(ctx) {
             // Após a validação bem-sucedida, chama a função createNumericKeyboard
             const selectedNumbers = []; // Substitua isso pela lista de números selecionados
             const keyboard = await createNumericKeyboard(ctx, selectedNumbers);
+
+            const salvarId4 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' });
+            ctx.session.mensagensIDS.push(salvarId4.message_id);
+            ctx.session.selectedNumbers = []; // Limpar os números selecionados
             let message = await ctx.reply('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
             let messageId = message.message_id;
             await ctx.session.mensagensIDS.push(messageId);
@@ -215,9 +219,9 @@ bot.action(/^[1-9]\d*$/, async (ctx) => {
         // Verifica se o usuário já selecionou 10 números
         if (ctx.session.selectedNumbers.length > 10) {
             // Se o usuário já selecionou 10 números, envie uma mensagem e não permita que ele selecione mais
-            const salvarID = await ctx.reply('Por favor, selecione EXATAMENTE 10 números, se for o caso substitua algum número não desejado, por outro desejado...');
+            const salvarID = await ctx.reply('⚠️ Por favor, selecione EXATAMENTE 10 números, se for o caso substitua algum número não desejado, por outro desejado... ⚠️');
             ctx.session.mensagensIDS.push(salvarID.message_id);
-            return 
+            return
         }
         // Adiciona o número selecionado
         ctx.session.selectedNumbers.push(number);
@@ -248,22 +252,19 @@ async function handleConfirmAction(ctx) {
     await deleteAllMessages(ctx);
     validateSelectedNumbers(ctx);
     console.log(ctx.session.selectedNumbers)
-    if (ctx.session.selectedNumbers.length < 10) {
-    const salvarID =  await ctx.reply('Por favor, selecione exatamente 10 números antes de confirmar.');
-    ctx.session.mensagensIDS.push(salvarID.message_id);
-    }
 
     if (ctx.session.selectedNumbers.length === 10) {
         // Adiciona botões confirmar_Numeros e alterar_Numeros
         const confirm_NumerosButton = Markup.button.callback('Confirmar Números', 'confirmar_Numeros');
         const alterar_NumerosButton = Markup.button.callback('Alterar Números', 'alterar_Numeros');
         const keyboard = [[confirm_NumerosButton, alterar_NumerosButton]];
+        const salvarId4 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' });
+        ctx.session.mensagensIDS.push(salvarId4.message_id);
         const salvarId = await ctx.reply(`Confirme os Números Selecionados: \n${ctx.session.selectedNumbers.sort((a, b) => a - b).join('  ')}`, Markup.inlineKeyboard(keyboard));
         if (salvarId && salvarId.message_id) {
             ctx.session.mensagensIDS.push(salvarId.message_id);
         }
     } else {
-
         const number = parseInt(ctx.match[0]);
         if (!ctx.session.selectedNumbers) {
             ctx.session.selectedNumbers = [];
@@ -291,15 +292,12 @@ async function handleConfirmAction(ctx) {
                 }
             });
         });
+        const salvarId4 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' });
+        ctx.session.mensagensIDS.push(salvarId4.message_id);
         const salvarId = await ctx.reply('Por favor selecione EXATAMENTE 10 números:', Markup.inlineKeyboard(keyboard));
         if (salvarId && salvarId.message_id) {
             ctx.session.mensagensIDS.push(salvarId.message_id);
         }
-        // Se um número válido foi selecionado, chame a função handleConfirmAction novamente
-        if (ctx.session.selectedNumbers.length === 10) {
-            await handleConfirmAction(ctx);
-        }
-
     }
     setTimeout(() => { }, 1000);
 }
@@ -345,7 +343,7 @@ bot.action('confirmar_Numeros', async (ctx) => {
             }
         }
     } else {
-        ctx.reply('Por favor, selecione exatamente 10 números antes de confirmar.');
+        // ctx.reply('Por favor, selecione exatamente 10 números antes de confirmar.');
     }
 });
 
@@ -430,9 +428,12 @@ async function inserirIDPagamentoNaPlanilha(idUnico) {
 
 // Função para lidar com o botão alterar_Numeros
 bot.action('alterar_Numeros', async (ctx) => {
-    ctx.session.selectedNumbers = []; // Limpar os números selecionados
+    await deleteAllMessages(ctx);
+    // ctx.session.selectedNumbers = []; // Limpar os números selecionados
     const keyboard = createNumericKeyboard(selectedNumbers);
-    const salvarId = await ctx.editMessageText('Escolha 10 números:', Markup.inlineKeyboard(keyboard));
+    const salvarId4 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' });
+    ctx.session.mensagensIDS.push(salvarId4.message_id);
+    const salvarId = await ctx.reply('Altere seus números:', Markup.inlineKeyboard(keyboard));
     if (salvarId) {
         ctx.session.mensagensIDS.push(salvarId.message_id);
     }
