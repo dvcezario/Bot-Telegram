@@ -32,7 +32,7 @@ async function apresentarTodosResultados(ctx) {
 
 
     const salvarIdInfo = await ctx.editMessageCaption('Informações sobre o concurso:');
-    setTimeout(() => {}, 1000);
+    setTimeout(() => { }, 1000);
     if (salvarIdInfo) {
         ctx.session.mensagensIDS.push(salvarIdInfo.message_id);
     }
@@ -84,7 +84,7 @@ async function apresentarResultadoProximo(ctx) {
         if (salvarID) {
             ctx.session.mensagensIDS.push(salvarID.message_id);
         }
-        setTimeout(() => {}, 1000);
+        setTimeout(() => { }, 1000);
         return;
     }
 
@@ -97,33 +97,41 @@ async function apresentarResultadoProximo(ctx) {
     }
 }
 
-// Função para buscar resultado por concurso
+let esperandoResultado = true;
+
 async function buscarResultadoPorConcurso(ctx) {
+    ctx.session.esperandoResultado = true;
     let message;
     if (ctx.callbackQuery.message.text) {
         message = await ctx.editMessageText('Por favor, digite o número do concurso:');
     } else if (ctx.callbackQuery.message.photo) {
         message = await ctx.editMessageCaption('Por favor, digite o número do concurso:');
     }
-    ctx.session.awaitingConcursoNumber = true;
+    await textListener(ctx);
     if (message) {
         ctx.session.mensagensIDS.push(message.message_id);
     }
+    setTimeout(() => { }, 1000);
+    return ctx.session.esperandoResultado; // retornar o valor
 }
 
 async function textListener(ctx) {
+
+    if (!ctx.message || !ctx.message.text) {
+        console.log('Olá, não foi possível obter o texto da mensagem.')
+        
+        return;
+    }
+
     const numeroConcurso = parseInt(ctx.message.text.trim(), 10);
     const resultado = await obterResultadoPorConcurso(numeroConcurso, ctx);
-
-    // Desativar o estado de espera do número do concurso
-    ctx.session.awaitingConcursoNumber = false;
-
     if (!resultado) {
         const buttons = criarBotoesPadrao();
         const salvarID = await ctx.replyWithMarkdown('Resultado não encontrado para o concurso informado.', Markup.inlineKeyboard(buttons));
         if (salvarID) {
             ctx.session.mensagensIDS.push(salvarID.message_id);
         }
+        setTimeout(() => { }, 1000);
         return;
     }
 
@@ -134,7 +142,7 @@ async function textListener(ctx) {
     if (concursoBuscado) {
         await ctx.session.mensagensIDS.push(concursoBuscado.message_id);
     }
-}
+};
 
 bot.action('resultado_anterior', apresentarResultadoAnterior);
 bot.action('resultado_proximo', apresentarResultadoProximo);
@@ -156,7 +164,7 @@ async function obterResultadoPorConcurso(concurso, ctx) {
             // const message1 = ctx.telegram.sendMessage(ctx.chat.id, `Erro ao obter resultados do concurso ${concurso}:`, { parse_mode: 'Markdown' });
             // ctx.session.mensagensIDS.push(message1.message_id);
         }
-        setTimeout(() => {}, 1000);
+        setTimeout(() => { }, 1000);
         return null;
     }
 }
@@ -191,7 +199,7 @@ Números sorteados: ${numerosSorteados}`;
 
     mensagensIDS.push(returnConcurso.message_id); // sempre vem undefined pois retorna uma string e não uma mensagem do telegram, logo não tem id
     console.log(mensagensIDS);
-    setTimeout(() => {}, 1000);
+    setTimeout(() => { }, 1000);
     return returnConcurso;
 }
 
@@ -200,11 +208,11 @@ module.exports = {
     apresentarResultadoAnterior,
     apresentarResultadoProximo,
     obterUltimoResultado,
-    textListener,
     obterResultadoPorConcurso,
     buscarResultadoPorConcurso,
     criarBotoesPadrao,
     formatarResultado,
+    esperandoResultado,
     ultimoConcursoConsultado,
     mensagensIDS,
     session

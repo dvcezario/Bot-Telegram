@@ -6,6 +6,16 @@ const apiFileUrl = process.env.API_FILE_URL.replace('${TOKEN}', token);
 const { Markup } = require('telegraf');
 const bot = require('./bot');
 const session = require('telegraf/session');
+const { apresentarTodosResultados,
+    apresentarResultadoAnterior,
+    apresentarResultadoProximo,
+    obterUltimoResultado,
+    textListener,
+    obterResultadoPorConcurso,
+    buscarResultadoPorConcurso,
+    criarBotoesPadrao,
+    formatarResultado,
+    ultimoConcursoConsultado } = require('./resultados');
 
 const { deleteAllMessages } = require('./telaInicial');
 const fs = require('fs');
@@ -14,13 +24,18 @@ const participarDoJogo = require('./participardoJogo');
 const path = require('path');
 const photoPath = path.join(__dirname, 'Logo3.jpg');
 
+const { createNumericKeyboard,
+    salvarNumerosSelecionados,
+    validatePhoneNumber,
+    isValidPhoneNumber,
+    gerarQRCodePix,
+    inserirIDPagamentoNaPlanilha,
+    deleteNumericKeyboard } = require('./participardoJogo');
 
 const { apresentarTelaInicial, MENU_INICIAL } = require('./telaInicial');
 const { apresentarMenuClassificacao, apresentarMenuResultados, apresentarMenuJogar, apresentarInformacoesJogo, apresentarMenuLinkIndicacao, apresentarMenuAjuda, apresentarSubMenuAcertoAcumulado } = require('./menu');
-const { apresentarTodosResultados, apresentarResultadoAnterior, apresentarResultadoProximo } = require('./resultados');
 const { apresentarClassificacaoGeral, apresentarClassificacaoRodada } = require('./classificacao');
 const { apresentarPremiacoes, apresentarPlanilhaJogadores } = require('./jogar');
-const { validatePhoneNumber } = require('./participardoJogo');
 const { enviarVideoExplicativo, enviarTextoExplicativo, enviarInformacoesPagamento, enviarInformacoesRecebimento } = require('./menuInformacoes');
 const mercadopago = require('./mercadopago');
 const { mensagensIDS } = require('./telaInicial');
@@ -327,6 +342,49 @@ bot.command('resultados', async (ctx) => {
 
 bot.action('participar_jogo', (ctx) => {
     validatePhoneNumber(ctx, ctx.from.phone_number);
+});
+
+// Único handler de texto combinando ambas as lógicas
+bot.on('text', async (ctx) => {
+    const response = ctx.message.text.trim();
+
+    if (ctx.session.awaitingPhoneNumber) {
+        if (isValidPhoneNumber(response)) {
+            // Após a validação bem-sucedida, armazena o número de telefone na variável global
+            userPhoneNumber = response;
+
+            // Deleta todas as mensagens anteriores
+            await deleteAllMessages(ctx);
+
+            // Após a validação bem-sucedida, chama a função createNumericKeyboard
+            const selectedNumbers = []; // Substitua isso pela lista de números selecionados
+            const keyboard = await createNumericKeyboard(ctx, selectedNumbers);
+
+            const salvarId4 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' });
+            ctx.session.mensagensIDS.push(salvarId4.message_id);
+            ctx.session.selectedNumbers = []; // Limpar os números selecionados
+            let message = await ctx.reply('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
+            let messageId = message.message_id;
+            await ctx.session.mensagensIDS.push(messageId);
+
+            // Armazena o message_id da mensagem "Escolha 10 números"
+            mensagemEscolhaNumerosId = messageId;
+            ctx.session.awaitingPhoneNumber = false;
+        } else {
+            const salvarID3 = await ctx.reply('Número inválido. Por favor, digite um número válido.', {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '🏠 Menu Inicial', callback_data: 'voltar' }
+                        ]
+                    ]
+                }
+            });
+            await ctx.session.mensagensIDS.push(salvarID3.message_id);
+        }
+    } else if (ctx.session.awaitingConcursoNumber) {
+        await textListener(ctx);
+    }
 });
 
 bot.launch();
