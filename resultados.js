@@ -1,16 +1,16 @@
 const { Markup } = require('telegraf');
 const axios = require('axios');
 const bot = require('./bot');
-const session = require('telegraf/session');
-const telaInicial = require('./telaInicial'); // Importe a função de apresentar a tela inicial
-// Importa o array para armazrenar os IDs das mensagens
+const fs = require('fs');
+const path = require('path');
 const { mensagensIDS } = require('./telaInicial');
 
-let ultimoConcursoConsultado; // Variável para armazenar o número do último concurso consultado
+const photoPath = path.join(__dirname, 'Logo3.jpg');
+let ultimoConcursoConsultado;
 
 async function obterUltimoResultado() {
     try {
-        const response = await axios.get('https://loteriascaixa-api.herokuapp.com/api/megasena/latest');
+        const response = await axios.get('https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena');
         return response.data;
     } catch (error) {
         console.error('Erro ao obter o último resultado da Mega-Sena:', error);
@@ -18,181 +18,162 @@ async function obterUltimoResultado() {
     }
 }
 
-// Função para apresentar todos os resultados
 async function apresentarTodosResultados(ctx) {
     const ultimoResultado = await obterUltimoResultado();
     if (!ultimoResultado) {
-        ctx.reply('Desculpe, não foi possível obter as informações do concurso no momento.');
+        await enviarMensagemComLogo(ctx, 'Desculpe, não foi possível obter as informações do concurso no momento.');
         return;
     }
 
-    ultimoConcursoConsultado = ultimoResultado.concurso;
+    ultimoConcursoConsultado = ultimoResultado.numero;
     const formattedResult = formatarResultado(ultimoResultado);
     const buttons = criarBotoesPadrao();
 
-
-    const salvarIdInfo = await ctx.editMessageCaption('Informações sobre o concurso:');
-    setTimeout(() => {}, 1000);
-    if (salvarIdInfo) {
-        ctx.session.mensagensIDS.push(salvarIdInfo.message_id);
-    }
-
-    const salvarId = await ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
-    if (ctx.message) {
-        ctx.session.mensagensIDS.push(ctx.message.message_id);
-    }
-    if (salvarId) {
-        ctx.session.mensagensIDS.push(salvarId.message_id);
-    }
-
+    await enviarMensagemComLogo(ctx, formattedResult, buttons);
 }
 
 async function apresentarResultadoAnterior(ctx) {
-    if (!ultimoConcursoConsultado) {
-        const buttons = criarBotoesPadrao();
-        const salvarID5 = await ctx.replyWithMarkdown('Não existe concurso anterior.', Markup.inlineKeyboard(buttons));
-        if (salvarID5) {
-            ctx.session.mensagensIDS.push(salvarID5.message_id);
-        }
+    if (!ultimoConcursoConsultado || ultimoConcursoConsultado === 1) {
+        await editarMensagem(ctx, 'Não existe concurso anterior.');
         return;
     }
 
     const resultadoAnterior = await obterResultadoPorConcurso(ultimoConcursoConsultado - 1);
     if (!resultadoAnterior) {
-        const buttons = criarBotoesPadrao();
-        const salvarId4 = await ctx.replyWithMarkdown('Não existe concurso anterior.', Markup.inlineKeyboard(buttons));
-        if (salvarId4) {
-            ctx.session.mensagensIDS.push(salvarId4.message_id);
-        }
+        await editarMensagem(ctx, 'Não existe concurso anterior.');
         return;
     }
 
     ultimoConcursoConsultado--;
     const formattedResult = formatarResultado(resultadoAnterior);
-    const buttons = criarBotoesPadrao();
-    const salvarID3 = await ctx.editMessageText(formattedResult, Markup.inlineKeyboard(buttons));
-    if (salvarID3) {
-        ctx.session.mensagensIDS.push(salvarID3.message_id);
-    }
+    await editarMensagem(ctx, formattedResult);
 }
 
 async function apresentarResultadoProximo(ctx) {
+    const ultimoResultado = await obterUltimoResultado();
+    if (ultimoConcursoConsultado + 1 > ultimoResultado.numero) {
+        await editarMensagem(ctx, `O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`);
+        return;
+    }
+
     const proximoResultado = await obterResultadoPorConcurso(ultimoConcursoConsultado + 1);
     if (!proximoResultado) {
-        const buttons = criarBotoesPadrao();
-        const salvarID = await ctx.editMessageText(`O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`, Markup.inlineKeyboard(buttons));
-        if (salvarID) {
-            ctx.session.mensagensIDS.push(salvarID.message_id);
-        }
-        setTimeout(() => {}, 1000);
+        await editarMensagem(ctx, `O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`);
         return;
     }
 
     ultimoConcursoConsultado++;
     const formattedResult = formatarResultado(proximoResultado);
-    const buttons = criarBotoesPadrao();
-    const salvarId2 = ctx.editMessageText(formattedResult, Markup.inlineKeyboard(buttons));
-    if (salvarId2) {
-        ctx.session.mensagensIDS.push(salvarId2.message_id);
-    }
+    await editarMensagem(ctx, formattedResult);
 }
 
-// Função para buscar resultado por concurso
 async function buscarResultadoPorConcurso(ctx) {
-    let message;
-    if (ctx.callbackQuery.message.text) {
-        message = await ctx.editMessageText('Por favor, digite o número do concurso:');
-    } else if (ctx.callbackQuery.message.photo) {
-        message = await ctx.editMessageCaption('Por favor, digite o número do concurso:');
-    }
-    ctx.session.awaitingConcursoNumber = true;
-    if (message) {
-        ctx.session.mensagensIDS.push(message.message_id);
-    }
+    await enviarMensagemComLogo(ctx, 'Por favor, digite o número do concurso:');
+    ctx.session.awaitingNumeroConcurso = true;
 }
 
-async function textListener(ctx) {
+async function escutarNumeroConcurso(ctx) {
+    await deleteMessageSafely(ctx, ctx.message.message_id); // Apagar a mensagem enviada pelo usuário
     const numeroConcurso = parseInt(ctx.message.text.trim(), 10);
-    const resultado = await obterResultadoPorConcurso(numeroConcurso, ctx);
-
-    // Desativar o estado de espera do número do concurso
-    ctx.session.awaitingConcursoNumber = false;
-
+    const resultado = await obterResultadoPorConcurso(numeroConcurso);
     if (!resultado) {
-        const buttons = criarBotoesPadrao();
-        const salvarID = await ctx.replyWithMarkdown('Resultado não encontrado para o concurso informado.', Markup.inlineKeyboard(buttons));
-        if (salvarID) {
-            ctx.session.mensagensIDS.push(salvarID.message_id);
-        }
+        await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
+        await enviarMensagemComLogo(ctx, 'Resultado não encontrado para o concurso informado.\nDigite o numero de um concurso válido.');
         return;
     }
 
     ultimoConcursoConsultado = numeroConcurso;
     const formattedResult = formatarResultado(resultado);
-    const buttons = criarBotoesPadrao();
-    const concursoBuscado = await ctx.reply(formattedResult, Markup.inlineKeyboard(buttons));
-    if (concursoBuscado) {
-        await ctx.session.mensagensIDS.push(concursoBuscado.message_id);
-    }
+    await enviarMensagemComLogo(ctx, formattedResult);
+    ctx.session.awaitingNumeroConcurso = false;
 }
 
-bot.action('resultado_anterior', apresentarResultadoAnterior);
-bot.action('resultado_proximo', apresentarResultadoProximo);
-bot.action('buscar_concurso', buscarResultadoPorConcurso);
-bot.action(telaInicial.MENU_INICIAL, telaInicial.apresentarTelaInicial);
-
-async function obterResultadoPorConcurso(concurso, ctx) {
+async function obterResultadoPorConcurso(concurso) {
     try {
-        const response = await axios.get(`https://loteriascaixa-api.herokuapp.com/api/megasena/${concurso}`);
+        const response = await axios.get(`https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena/${concurso}`);
         return response.data;
-    } catch {
-        const buttons = criarBotoesPadrao();
-        if (ctx.reply) {
-            console.log('Erro vindo da API, ao buscar resultado do concurso.')
-            // const message2 = ctx.reply(`Erro ao obter resultados do concurso ${concurso}:`, Markup.inlineKeyboard(buttons), { parse_mode: 'Markdown' });
-            // ctx.session.mensagensIDS.push(message2.message_id);
-        } else if (ctx.telegram && ctx.telegram.sendMessage) {
-            console.log('Erro vindo da API, ao buscar resultado do concurso.')
-            // const message1 = ctx.telegram.sendMessage(ctx.chat.id, `Erro ao obter resultados do concurso ${concurso}:`, { parse_mode: 'Markdown' });
-            // ctx.session.mensagensIDS.push(message1.message_id);
-        }
-        setTimeout(() => {}, 1000);
+    } catch (error) {
+        console.error(`Erro ao obter resultados do concurso ${concurso}:`, error);
         return null;
     }
 }
 
 function criarBotoesPadrao() {
     return [
-        [
-            Markup.button.callback('⏮️ Concurso Anterior', 'resultado_anterior'),
-            Markup.button.callback('⏭️ Próximo Concurso', 'resultado_proximo')
-        ],
-        [
-            Markup.button.callback('🔍 Buscar Concurso', 'buscar_concurso')
-        ],
-        [
-            Markup.button.callback('🏠 Menu Inicial', 'voltar')
-        ]
+        [Markup.button.callback('⏮️ Concurso Anterior', 'resultado_anterior')],
+        [Markup.button.callback('⏭️ Próximo Concurso', 'resultado_proximo')],
+        [Markup.button.callback('🔍 Buscar Concurso', 'buscar_concurso')],
+        [Markup.button.callback('🏠 Menu Inicial', 'voltar')]
     ];
 }
 
 function formatarResultado(resultado) {
-    const {
-        concurso,
-        data,
-        dezenas
-    } = resultado;
+    const { numero, dataApuracao, listaDezenas } = resultado;
+    const numerosSorteados = listaDezenas.join(' ');
 
-    const numerosSorteados = dezenas.join(' ');
+    return `Concurso: ${numero}\nData: ${dataApuracao}\nNúmeros sorteados: \n${numerosSorteados}`;
+}
 
-    const returnConcurso = `Concurso: ${concurso}
-Data: ${data}
-Números sorteados: ${numerosSorteados}`;
+async function enviarMensagemComLogo(ctx, mensagem, buttons) {
+    const opts = {
+        caption: mensagem,
+        reply_markup: {
+            inline_keyboard: buttons || criarBotoesPadrao()
+        }
+    };
 
-    mensagensIDS.push(returnConcurso.message_id); // sempre vem undefined pois retorna uma string e não uma mensagem do telegram, logo não tem id
-    console.log(mensagensIDS);
-    setTimeout(() => {}, 1000);
-    return returnConcurso;
+    const photo = fs.readFileSync(photoPath);
+    const message = await ctx.replyWithPhoto({ source: photo }, opts);
+
+    if (message) {
+        ctx.session.mensagensIDS.push(message.message_id);
+        ctx.session.mainMessageId = message.message_id;
+        console.log(`Mensagem enviada com logo: ${message.message_id}`);
+    }
+}
+
+async function editarMensagem(ctx, mensagem) {
+    try {
+        const mainMessageId = ctx.session.mainMessageId;
+        if (!mainMessageId) {
+            console.error('Main message ID not found');
+            return;
+        }
+
+        await ctx.telegram.editMessageCaption(
+            ctx.chat.id,
+            mainMessageId,
+            null,
+            mensagem,
+            {
+                reply_markup: {
+                    inline_keyboard: criarBotoesPadrao()
+                }
+            }
+        );
+    } catch (error) {
+        console.error('Erro ao editar a mensagem:', error);
+    }
+}
+
+async function deleteMessageSafely(ctx, messageId) {
+    try {
+        await ctx.deleteMessage(messageId);
+        console.log(`Mensagem do usuário excluída: ${messageId}`);
+    } catch (error) {
+        if (error.code !== 400 && error.code !== 404) {
+            console.error(`Erro ao excluir a mensagem do usuário com ID ${messageId}:`, error);
+        }
+    }
+}
+
+async function deleteAllMessages(ctx) {
+    if (ctx.session && ctx.session.mensagensIDS) {
+        for (const messageId of ctx.session.mensagensIDS) {
+            await deleteMessageSafely(ctx, messageId);
+        }
+        ctx.session.mensagensIDS = [];
+    }
 }
 
 module.exports = {
@@ -200,12 +181,10 @@ module.exports = {
     apresentarResultadoAnterior,
     apresentarResultadoProximo,
     obterUltimoResultado,
-    textListener,
     obterResultadoPorConcurso,
     buscarResultadoPorConcurso,
+    escutarNumeroConcurso,
     criarBotoesPadrao,
     formatarResultado,
-    ultimoConcursoConsultado,
-    mensagensIDS,
-    session
+    ultimoConcursoConsultado
 };

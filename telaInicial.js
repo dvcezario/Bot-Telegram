@@ -1,102 +1,64 @@
 const { Markup } = require('telegraf');
-const bot = require('./bot');
-const MENU_INICIAL = 'menu_inicial';
-const telegraf = require('telegraf');
-const session = require('telegraf/session');
-const bot2 = new telegraf.Telegraf(process.env.TOKEN);
+const fs = require('fs');
+const path = require('path');
+const { obterProximaRodadaData } = require('./config');
 
-let mensagensIDS = [];
+const photoPath = path.join(__dirname, 'Logo3.jpg');
 
 async function apresentarTelaInicial(ctx) {
     try {
-        const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
-
-        if (ctx.callbackQuery) {
-            if (!ctx.callbackQuery.message || !ctx.callbackQuery.message.caption) {
-                try {
-                    await ctx.telegram.deleteMessage(ctx.chat.id, ctx.callbackQuery.message.message_id);
-
-                    apresentarTelaInicial(ctx);
-                }
-                catch (error) {
-                    console.error('Erro ao excluir as mensagens', error);
-                }
-                const sentMessage2 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
-                    caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
-                    reply_markup: {
-                        inline_keyboard: [
-                            [
-                                { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
-                                { text: '📊 Resultados', callback_data: 'menu_resultados' }
-                            ],
-                            [
-                                { text: '🎮 Jogar', callback_data: 'menu_jogar' },
-                                { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
-                            ],
-                            [
-                                { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
-                                { text: '❓ Ajuda', callback_data: 'ajuda' }
-                            ]
-                        ]
-                    }
-                });
-                ctx.session.mensagensIDS.push(sentMessage2.message_id);
-            }
-        } else {
-            const sentMessage = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
-                caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
-                            { text: '📊 Resultados', callback_data: 'menu_resultados' }
-                        ],
-                        [
-                            { text: '🎮 Jogar', callback_data: 'menu_jogar' },
-                            { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
-                        ],
-                        [
-                            { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
-                            { text: '❓ Ajuda', callback_data: 'ajuda' }
-                        ]
-                    ]
-                }
-            });
-            ctx.session.mensagensIDS.push(sentMessage.message_id);
+        if (!ctx.session.mensagensIDS) {
+            ctx.session.mensagensIDS = [];
         }
+
+        const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
+        const caption = `${from.first_name || ''} ${from.last_name || ''}, Seja Bem-Vindo ao Década da Sorte! ${obterProximaRodadaData()}`;
+
+        const sentMessage = await ctx.replyWithPhoto({ source: photoPath }, {
+            caption: caption,
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
+                        { text: '📊 Resultados', callback_data: 'menu_resultados' }
+                    ],
+                    [
+                        { text: '🎮 Jogar', callback_data: 'menu_jogar' },
+                        { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
+                    ],
+                    [
+                        { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
+                        { text: '❓ Ajuda', callback_data: 'ajuda' }
+                    ],
+                    [
+                        { text: '❖ Cadastrar Pix', callback_data: 'menu_cadastrar_pix' }
+                    ]
+                ]
+            }
+        });
+
+        ctx.session.mensagensIDS.push(sentMessage.message_id);
     } catch (error) {
-        console.error('Estou no Catch', error);
+        console.error('Erro ao apresentar a tela inicial:', error);
     }
 }
 
 async function deleteAllMessages(ctx) {
-    // Certifique-se de que ctx.session.mensagensIDS é um array
-    if (!Array.isArray(ctx.session.mensagensIDS)) {
-        console.error('ctx.session.mensagensIDS não é um array');
-        return;
-    }
-
-    // Exclua todas as mensagens em ctx.session.mensagensIDS
-    for (let i = ctx.session.mensagensIDS.length - 1; i >= 0; i--) {
-        const id = ctx.session.mensagensIDS[i];
-        try {
-            await ctx.telegram.deleteMessage(ctx.chat.id, id);
-            ctx.session.mensagensIDS.splice(i, 1);
-        } catch (error) {
-            // Ignore o erro "message to delete not found"
-            if (!error.message.includes('message to delete not found')) {
-                console.error(`Falha ao excluir a mensagem com ID ${id}: ${error}`);
+    if (Array.isArray(ctx.session.mensagensIDS)) {
+        for (const messageId of ctx.session.mensagensIDS) {
+            try {
+                await ctx.deleteMessage(messageId);
+            } catch (error) {
+                if (error.code !== 400 && error.code !== 404) {
+                    console.error('Erro ao excluir mensagem:', error);
+                }
             }
         }
+        ctx.session.mensagensIDS = [];
     }
-
-    // Limpe ctx.session.mensagensIDS
-    ctx.session.mensagensIDS = [];
 }
 
 module.exports = {
     apresentarTelaInicial,
-    MENU_INICIAL,
-    deleteAllMessages,
-    mensagensIDS,
+    deleteAllMessages
 };

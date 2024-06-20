@@ -1,42 +1,74 @@
-// index.js
-require('dotenv').config();
-const token = process.env.TOKEN;
-const apiUrl = process.env.API_URL.replace('${TOKEN}', token);
-const apiFileUrl = process.env.API_FILE_URL.replace('${TOKEN}', token);
-const { Markup } = require('telegraf');
-const bot = require('./bot');
-const session = require('telegraf/session');
-const { apresentarTodosResultados,
-    apresentarResultadoAnterior,
-    apresentarResultadoProximo,
-    obterUltimoResultado,
-    textListener,
-    obterResultadoPorConcurso,
-    buscarResultadoPorConcurso,
-    criarBotoesPadrao,
-    formatarResultado,
-    ultimoConcursoConsultado } = require('./resultados');
+require('dotenv').config({ path: __dirname + '/.env' });
+const { Telegraf, Markup, session } = require('telegraf');
+const bot = new Telegraf(process.env.token);
+const { proximaRodadaData } = require('./config');
 
 const { deleteAllMessages } = require('./telaInicial');
 const fs = require('fs');
-const resultados = require('./resultados')
-const participarDoJogo = require('./participardoJogo');
+const resultados = require('./resultados');
+const cadastrarPix = require('./cadastrarPix');
+const jogoAcumulado6 = require('./jogoAcumulado6');
+const jogoAcumulado10 = require('./jogoAcumulado10');
+const jogoTiroCerto = require('./jogoTiroCerto');
 const path = require('path');
 const photoPath = path.join(__dirname, 'Logo3.jpg');
 
-const { createNumericKeyboard,
-    salvarNumerosSelecionados,
-    validatePhoneNumber,
-    isValidPhoneNumber,
-    gerarQRCodePix,
-    inserirIDPagamentoNaPlanilha,
-    deleteNumericKeyboard } = require('./participardoJogo');
-
 const { apresentarTelaInicial, MENU_INICIAL } = require('./telaInicial');
-const { apresentarMenuClassificacao, apresentarMenuResultados, apresentarMenuJogar, apresentarInformacoesJogo, apresentarMenuLinkIndicacao, apresentarMenuAjuda, apresentarSubMenuAcertoAcumulado } = require('./menu');
-const { apresentarClassificacaoGeral, apresentarClassificacaoRodada } = require('./classificacao');
-const { apresentarPremiacoes, apresentarPlanilhaJogadores } = require('./jogar');
-const { enviarVideoExplicativo, enviarTextoExplicativo, enviarInformacoesPagamento, enviarInformacoesRecebimento } = require('./menuInformacoes');
+const { 
+    apresentarMenuClassificacao, 
+    apresentarMenuResultados, 
+    apresentarMenuJogar, 
+    apresentarInformacoesJogo, 
+    apresentarMenuLinkIndicacao, 
+    apresentarMenuAjuda, 
+    apresentarMenuCadastrarPix, 
+    apresentarSubMenuAcertoAcumulado, 
+    apresentarSubMenuAcertoAcumulado6, 
+    apresentarSubMenuAcertoAcumulado10, 
+    apresentarSubMenuTiroCerto 
+} = require('./menu');
+const { 
+    apresentarTodosResultados, 
+    apresentarResultadoAnterior, 
+    apresentarResultadoProximo, 
+    escutarNumeroConcurso 
+} = require('./resultados');
+const { 
+    apresentarClassificacaoGeral, 
+    apresentarClassificacaoRodada 
+} = require('./classificacao');
+const { 
+    apresentarPremiacoes, 
+    apresentarPlanilhaJogadores 
+} = require('./jogar');
+const { 
+    enviarLembreteSorteio,
+    enviarLembreteInicioRodada,
+    enviarMensagemPagamentoPendente,
+    enviarMensagemConfirmacaoPagamento 
+} = require('./mensagensAssincronas');
+const { 
+    validatePhoneNumberAcumulado6, 
+    handleJogoAcumulado6Text 
+} = require('./jogoAcumulado6');
+const { 
+    validatePhoneNumberAcumulado10 
+} = require('./jogoAcumulado10');
+const { 
+    validatePhoneNumberTiroCerto 
+} = require('./jogoTiroCerto');
+const { 
+    enviarVideoExplicativo, 
+    enviarTextoExplicativo, 
+    enviarInformacoesPagamento, 
+    enviarInformacoesRecebimento 
+} = require('./menuInformacoes');
+const { 
+    cadastrarPixCPF_CNPJ, 
+    cadastrarPixEmail, 
+    cadastrarPixCelular, 
+    cadastrarPixChaveAleatoria 
+} = require('./cadastrarPix');
 const mercadopago = require('./mercadopago');
 const { mensagensIDS } = require('./telaInicial');
 
@@ -44,23 +76,30 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Middleware de sessão
+bot.use(session());
 
-bot.start(async (ctx, next) => {
-
-    // Initialize ctx.session.mensagensIDS if it doesn't exist
+// Middleware para inicializar ctx.session
+bot.use((ctx, next) => {
     if (!ctx.session) {
         ctx.session = {};
     }
-
     if (!ctx.session.mensagensIDS) {
         ctx.session.mensagensIDS = [];
     }
+    return next();
+});
 
+// Comando /start
+bot.start(async (ctx) => {
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
     if (ctx.session.mensagensIDS.length > 0) {
+        await deleteAllMessages(ctx);
     }
-    next();
-}, apresentarTelaInicial);
+    apresentarTelaInicial(ctx);
+});
 
+// Ações
 bot.action('menu_classificacao', apresentarMenuClassificacao);
 bot.action('menu_resultados', apresentarMenuResultados);
 bot.action('menu_jogar', apresentarMenuJogar);
@@ -68,71 +107,89 @@ bot.action('classificacao_geral', apresentarClassificacaoGeral);
 bot.action('classificacao_rodada', apresentarClassificacaoRodada);
 bot.action('resultado_anterior', apresentarResultadoAnterior);
 bot.action('resultado_proximo', apresentarResultadoProximo);
-// Adicione este código onde você está configurando os manipuladores de eventos do bot
+
 bot.action('voltar', async (ctx) => {
-    // Deleta todas as mensagens
-    await deleteAllMessages(ctx);
-
-    // Obtem o objeto 'from' do contexto atual
-    const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
-
-    // Envia a tela inicial
-    await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
-        caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte!`,
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
-                    { text: '📊 Resultados', callback_data: 'menu_resultados' }
-                ],
-                [
-                    { text: '🎮 Jogar', callback_data: 'menu_jogar' },
-                    { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
-                ],
-                [
-                    { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
-                    { text: '❓ Ajuda', callback_data: 'ajuda' }
-                ]
-            ]
-        }
-    });
+    await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
+    apresentarTelaInicial(ctx); // Mostrar o menu inicial
 });
+
+bot.action('premiacoes_acumulado6', async (ctx) => {
+    await apresentarPremiacoes(ctx, 'Acumulado6');
+});
+
+bot.action('premiacoes_acumulado10', async (ctx) => {
+    await apresentarPremiacoes(ctx, 'Acumulado10');
+});
+
+bot.action('premiacoes_tiro_certo', async (ctx) => {
+    await apresentarPremiacoes(ctx, 'TiroCerto');
+});
+
+bot.action('planilha_jogadores_acumulado6', async (ctx) => {
+    await apresentarPlanilhaJogadores(ctx, 'Acumulado6');
+});
+
+bot.action('planilha_jogadores_acumulado10', async (ctx) => {
+    await apresentarPlanilhaJogadores(ctx, 'Acumulado10');
+});
+
+bot.action('planilha_jogadores_tiro_certo', async (ctx) => {
+    await apresentarPlanilhaJogadores(ctx, 'TiroCerto');
+});
+
 bot.action('todos_resultados', apresentarTodosResultados);
-bot.action('acerto_acumulado', apresentarSubMenuAcertoAcumulado);
-bot.action('premiacoes', apresentarPremiacoes);
-bot.action('planilha_jogadores', apresentarPlanilhaJogadores);
+bot.action('acerto_acumulado6', apresentarSubMenuAcertoAcumulado6);
+
+// Comentando as ações para funcionalidades não implementadas
+// bot.action('acerto_acumulado10', apresentarSubMenuAcertoAcumulado10);
+// bot.action('tiro_certo', apresentarSubMenuTiroCerto);
+// bot.action('link_indicacao', apresentarMenuLinkIndicacao);
+
 bot.action('ajuda', apresentarMenuAjuda);
-bot.action('link_indicacao', apresentarMenuLinkIndicacao);
 bot.action('menu_informacoes', apresentarInformacoesJogo);
 bot.action('video_explicativo', enviarVideoExplicativo);
 bot.action('texto_explicativo', enviarTextoExplicativo);
 bot.action('informacoes_pagamento', enviarInformacoesPagamento);
 bot.action('informacoes_recebimento', enviarInformacoesRecebimento);
 
-let isSending = false;
-
-// Digitar /classificao
-bot.command('classificacao', async (ctx) => {
-    if (isSending) return;
-    isSending = true;
-    try {
-        // Iterar sobre o array mensagensIDS e deletar cada mensagem
-        while (mensagensIDS.length > 0) {
-            const messageId = mensagensIDS.shift();
-            if (messageId) {
-                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
-            }
+// Mensagens para funcionalidades em desenvolvimento
+const mensagemEmDesenvolvimento = async (ctx, funcionalidade) => {
+    await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
+    const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
+    const mensagem = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+        caption: `Desculpe pelo transtorno, ${from.first_name} ${from.last_name}. A funcionalidade ${funcionalidade} ainda está em desenvolvimento e logo estará disponível.`,
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
+            ]
         }
-        // Deleta todas as mensagens
-        await deleteAllMessages(ctx);
-        const photoPath = path.join(__dirname, 'Logo3.jpg');
+    });
+    ctx.session.mensagensIDS.push(mensagem.message_id); // Adicionar a mensagem à sessão para exclusão futura
+};
+
+bot.action('acerto_acumulado10', (ctx) => mensagemEmDesenvolvimento(ctx, 'Acumulado - 10 Números 10 Acertos'));
+bot.action('tiro_certo', (ctx) => mensagemEmDesenvolvimento(ctx, 'Tiro Certo'));
+bot.action('link_indicacao', (ctx) => mensagemEmDesenvolvimento(ctx, 'Link de Indicação'));
+
+// Comandos
+bot.command('classificacao', async (ctx) => {
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
+    if (ctx.session.isSending) return;
+    ctx.session.isSending = true;
+    try {
+        if (ctx.session.mensagensIDS.length > 0) {
+            await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
+            ctx.session.mensagensIDS.shift();
+        }
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
             caption: 'Selecione o tipo de classificação:',
             reply_markup: {
                 inline_keyboard: [
                     [
-                        { text: '👑 Classificação Geral', callback_data: 'classificacao_geral' },
+                        { text: '👑 Classificação Geral', callback_data: 'classificacao_geral' }
+                    ],
+                    [
                         { text: '🎖️ Classificação da Rodada', callback_data: 'classificacao_rodada' }
                     ],
                     [
@@ -141,37 +198,34 @@ bot.command('classificacao', async (ctx) => {
                 ]
             }
         });
-        await ctx.session.mensagensIDS.push(salvarId.message_id);
+        ctx.session.mensagensIDS.push(salvarId.message_id);
     } finally {
-        isSending = false;
+        ctx.session.isSending = false;
     }
 });
 
-// Digitar /jogar
 bot.command('jogar', async (ctx) => {
-    if (isSending) return;
-    isSending = true;
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
+    if (ctx.session.isSending) return;
+    ctx.session.isSending = true;
     try {
-        // Iterar sobre o array mensagensIDS e deletar cada mensagem
-        while (mensagensIDS.length > 0) {
-            const messageId = mensagensIDS.shift();
-            if (messageId) {
-                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
-            }
+        if (ctx.session.mensagensIDS.length > 0) {
+            await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
+            ctx.session.mensagensIDS.shift();
         }
-        // Deleta todas as mensagens
-        await deleteAllMessages(ctx);
-        const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
             caption: 'Selecione uma opção para jogar:',
             reply_markup: {
                 inline_keyboard: [
                     [
-                        { text: '🎱 Acerto Acumulado', callback_data: 'acerto_acumulado' }
+                        { text: '🎱 Acumulado - 10 Números 6 Acertos', callback_data: 'acerto_acumulado6' }
                     ],
                     [
-                        { text: '🎯 Tiro Certo', callback_data: 'tiro_certo' }
+                        { text: '🎱 Acumulado - 10 Números 10 Acertos', callback_data: 'acerto_acumulado10' }
+                    ],
+                    [
+                        { text: '🎯 Tiro Certo - Maior Pontuador', callback_data: 'tiro_certo' }
                     ],
                     [
                         { text: '🏠 Menu Inicial', callback_data: 'voltar' }
@@ -179,33 +233,25 @@ bot.command('jogar', async (ctx) => {
                 ]
             }
         });
-        await ctx.session.mensagensIDS.push(salvarId.message_id);
+        ctx.session.mensagensIDS.push(salvarId.message_id);
     } finally {
-        isSending = false;
+        ctx.session.isSending = false;
     }
 });
 
-// Digitar /indicações
 bot.command('indicacao', async (ctx) => {
-    if (isSending) return;
-    isSending = true;
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
+    if (ctx.session.isSending) return;
+    ctx.session.isSending = true;
     try {
-        // Iterar sobre o array mensagensIDS e deletar cada mensagem
-        while (mensagensIDS.length > 0) {
-            const messageId = mensagensIDS.shift();
-            if (messageId) {
-                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
-            }
+        if (ctx.session.mensagensIDS.length > 0) {
+            await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
+            ctx.session.mensagensIDS.shift();
         }
-        // Deleta todas as mensagens
-        await deleteAllMessages(ctx);
-        const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
-
-        // Defina as variáveis aqui
-        const contadorIndicacoes = 0; // Substitua por sua lógica
-        const ultimaIndicacao = 'N/A'; // Substitua por sua lógica
-        const linkBotTelegram = 'https://t.me/your_bot'; // Substitua por sua lógica
+        const contadorIndicacoes = 0;
+        const ultimaIndicacao = 'N/A';
+        const linkBotTelegram = 'https://t.me/your_bot';
 
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
             caption: `
@@ -219,27 +265,21 @@ bot.command('indicacao', async (ctx) => {
                 ]
             }
         });
-        await ctx.session.mensagensIDS.push(salvarId.message_id);
+        ctx.session.mensagensIDS.push(salvarId.message_id);
     } finally {
-        isSending = false;
+        ctx.session.isSending = false;
     }
 });
 
-// Digitar /ajuda
 bot.command('ajuda', async (ctx) => {
-    if (isSending) return;
-    isSending = true;
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
+    if (ctx.session.isSending) return;
+    ctx.session.isSending = true;
     try {
-        // Iterar sobre o array mensagensIDS e deletar cada mensagem
-        while (mensagensIDS.length > 0) {
-            const messageId = mensagensIDS.shift();
-            if (messageId) {
-                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
-            }
+        if (ctx.session.mensagensIDS.length > 0) {
+            await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
+            ctx.session.mensagensIDS.shift();
         }
-        // Deleta todas as mensagens
-        await deleteAllMessages(ctx);
-        const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
             caption: 'Precisa de ajuda? Estamos aqui para ajudar!',
@@ -249,7 +289,7 @@ bot.command('ajuda', async (ctx) => {
                         { text: '💬 Atendimento Humano Telegram', url: 'https://t.me/Decada_da_Sorte' }
                     ],
                     [
-                        { text: '💬 Atendimento Humano WhatsApp', url: 'https://wa.me/5531991142862?text=Ol%C3%A1%2C+quero+participar+do+D%C3%A9cada+da+Sorte%21' }
+                        { text: '💬 Atendimento Humano WhatsApp', url: 'https://wa.me/5531995384968?text=Ol%C3%A1%2C+quero+participar+do+D%C3%A9cada+da+Sorte%21' }
                     ],
                     [
                         { text: '🏠 Menu Inicial', callback_data: 'voltar' }
@@ -257,38 +297,36 @@ bot.command('ajuda', async (ctx) => {
                 ]
             }
         });
-        await ctx.session.mensagensIDS.push(salvarId.message_id);
+        ctx.session.mensagensIDS.push(salvarId.message_id);
     } finally {
-        isSending = false;
+        ctx.session.isSending = false;
     }
 });
 
-// Digitar /informacoes
 bot.command('informacoes', async (ctx) => {
-    if (isSending) return;
-    isSending = true;
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
+    if (ctx.session.isSending) return;
+    ctx.session.isSending = true;
     try {
-        // Iterar sobre o array mensagensIDS e deletar cada mensagem
-        while (mensagensIDS.length > 0) {
-            const messageId = mensagensIDS.shift();
-            if (messageId) {
-                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
-            }
+        if (ctx.session.mensagensIDS.length > 0) {
+            await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
+            ctx.session.mensagensIDS.shift();
         }
-        // Deleta todas as mensagens
-        await deleteAllMessages(ctx);
-        const photoPath = path.join(__dirname, 'Logo3.jpg');
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
             caption: 'Informações sobre Jogo',
             reply_markup: {
                 inline_keyboard: [
                     [
-                        { text: '📹 Vídeo Explicativo', callback_data: 'video_explicativo' },
+                        { text: '📹 Vídeo Explicativo', callback_data: 'video_explicativo' }
+                    ],
+                    [
                         { text: '📄 Texto Explicativo', callback_data: 'texto_explicativo' }
                     ],
                     [
-                        { text: '💳 Pagamento do Jogo', callback_data: 'informacoes_pagamento' },
+                        { text: '💳 Pagamento do Jogo', callback_data: 'informacoes_pagamento' }
+                    ],
+                    [
                         { text: '💰 Recebimento do Prêmio', callback_data: 'informacoes_recebimento' }
                     ],
                     [
@@ -297,28 +335,55 @@ bot.command('informacoes', async (ctx) => {
                 ]
             }
         });
-        await ctx.session.mensagensIDS.push(salvarId.message_id);
+        ctx.session.mensagensIDS.push(salvarId.message_id);
     } finally {
-        isSending = false;
+        ctx.session.isSending = false;
     }
 });
 
-// Digitar /resultados
-bot.command('resultados', async (ctx) => {
-    if (isSending) return;
-    isSending = true;
+bot.command('pix', async (ctx) => {
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
+    if (ctx.session.isSending) return;
+    ctx.session.isSending = true;
     try {
-        // Iterar sobre o array mensagensIDS e deletar cada mensagem
-        while (mensagensIDS.length > 0) {
-            console.log(ctx.session.mensagensIDS)
-            const messageId = mensagensIDS.shift();
-            if (messageId) {
-                await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
-            }
+        if (ctx.session.mensagensIDS.length > 0) {
+            await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
+            ctx.session.mensagensIDS.shift();
         }
-        // Deleta todas as mensagens
-        await deleteAllMessages(ctx);
-        const photoPath = path.join(__dirname, 'Logo3.jpg');
+        const photo = fs.readFileSync(photoPath);
+        const salvarId = await ctx.replyWithPhoto({ source: photo }, {
+            caption: 'Cadastre sua chave Pix:',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🔢 CPF/CNPJ', callback_data: 'cadastrar_pix_cpf_cnpj' },
+                        { text: '✉️ E-mail', callback_data: 'cadastrar_pix_email' }
+                    ],
+                    [
+                        { text: '📱 Celular', callback_data: 'cadastrar_pix_celular' },
+                        { text: '🔑 Chave Aleatória', callback_data: 'cadastrar_pix_aleatoria' }
+                    ],
+                    [
+                        { text: '🏠 Menu Inicial', callback_data: 'voltar' }
+                    ]
+                ]
+            }
+        });
+        ctx.session.mensagensIDS.push(salvarId.message_id);
+    } finally {
+        ctx.session.isSending = false;
+    }
+});
+
+bot.command('resultados', async (ctx) => {
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
+    if (ctx.session.isSending) return;
+    ctx.session.isSending = true;
+    try {
+        if (ctx.session.mensagensIDS.length > 0) {
+            await ctx.telegram.deleteMessage(ctx.chat.id, ctx.session.mensagensIDS[0]);
+            ctx.session.mensagensIDS.shift();
+        }
         const photo = fs.readFileSync(photoPath);
         const salvarId = await ctx.replyWithPhoto({ source: photo }, {
             caption: 'Selecione quais Resultados:',
@@ -334,57 +399,72 @@ bot.command('resultados', async (ctx) => {
                 ]
             }
         });
-        await ctx.session.mensagensIDS.push(salvarId.message_id);
+        ctx.session.mensagensIDS.push(salvarId.message_id);
     } finally {
-        isSending = false;
+        ctx.session.isSending = false;
     }
 });
 
-bot.action('participar_jogo', (ctx) => {
-    validatePhoneNumber(ctx, ctx.from.phone_number);
+bot.action('buscar_concurso', async (ctx) => {
+    let message;
+    if (ctx.callbackQuery.message.text) {
+        message = await ctx.editMessageText('Por favor, digite o número do concurso:');
+    } else if (ctx.callbackQuery.message.photo) {
+        message = await ctx.editMessageCaption('Por favor, digite o número do concurso:');
+    }
+    if (message) {
+        ctx.session.mensagensIDS.push(message.message_id);
+    }
+    ctx.session.awaitingNumeroConcurso = true;
 });
 
-// Único handler de texto combinando ambas as lógicas
-bot.on('text', async (ctx) => {
-    const response = ctx.message.text.trim();
+bot.action('menu_cadastrar_pix', apresentarMenuCadastrarPix);
+bot.action('cadastrar_pix_cpf_cnpj', cadastrarPixCPF_CNPJ);
+bot.action('cadastrar_pix_email', cadastrarPixEmail);
+bot.action('cadastrar_pix_celular', cadastrarPixCelular);
+bot.action('cadastrar_pix_aleatoria', cadastrarPixChaveAleatoria);
 
-    if (ctx.session.awaitingPhoneNumber) {
-        if (isValidPhoneNumber(response)) {
-            // Após a validação bem-sucedida, armazena o número de telefone na variável global
-            userPhoneNumber = response;
-
-            // Deleta todas as mensagens anteriores
-            await deleteAllMessages(ctx);
-
-            // Após a validação bem-sucedida, chama a função createNumericKeyboard
-            const selectedNumbers = []; // Substitua isso pela lista de números selecionados
-            const keyboard = await createNumericKeyboard(ctx, selectedNumbers);
-
-            const salvarId4 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' });
-            ctx.session.mensagensIDS.push(salvarId4.message_id);
-            ctx.session.selectedNumbers = []; // Limpar os números selecionados
-            let message = await ctx.reply('Escolha seus 10 números:', Markup.inlineKeyboard(keyboard));
-            let messageId = message.message_id;
-            await ctx.session.mensagensIDS.push(messageId);
-
-            // Armazena o message_id da mensagem "Escolha 10 números"
-            mensagemEscolhaNumerosId = messageId;
-            ctx.session.awaitingPhoneNumber = false;
-        } else {
-            const salvarID3 = await ctx.reply('Número inválido. Por favor, digite um número válido.', {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: '🏠 Menu Inicial', callback_data: 'voltar' }
-                        ]
-                    ]
-                }
-            });
-            await ctx.session.mensagensIDS.push(salvarID3.message_id);
+// Função para enviar mensagem de erro com logo
+const enviarMensagemErroComLogo = async (ctx, mensagemErro) => {
+    await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
+    await ctx.deleteMessage(ctx.message.message_id); // Apagar a mensagem enviada pelo usuário
+    const mensagem = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+        caption: mensagemErro,
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
+            ]
         }
-    } else if (ctx.session.awaitingConcursoNumber) {
-        await textListener(ctx);
+    });
+    ctx.session.mensagensIDS.push(mensagem.message_id); // Adicionar a mensagem à sessão para exclusão futura
+};
+
+// Manipulador de texto para diferentes fluxos
+bot.on('text', async (ctx) => {
+    if (ctx.session.awaitingPhoneNumberForPix) {
+        await cadastrarPix.handlePixText(ctx);
+    } else if (ctx.session.awaitingPhoneNumberForGame) {
+        await jogoAcumulado6.handleJogoAcumulado6Text(ctx); // Use a função corretamente
+    } else if (ctx.session.awaitingNumeroConcurso) {
+        await escutarNumeroConcurso(ctx);
+    } else if (ctx.session.step) {
+        await cadastrarPix.handlePixText(ctx);
+    } else {
+        await enviarMensagemErroComLogo(ctx, 'Comando ou texto não reconhecido.');
     }
 });
+
+// Chamar a função para envio de Mensagens Assincronas
+enviarMensagemPagamentoPendente();
+
+bot.action('participar_jogo_acumulado6', (ctx) => {
+    jogoAcumulado6.validatePhoneNumberAcumulado6(ctx, ctx.from.phone_number);
+});
+
+bot.action('participar_jogo_acumulado10', (ctx) => mensagemEmDesenvolvimento(ctx, 'Acumulado - 10 Números 10 Acertos'));
+bot.action('participar_jogo_tiro_certo', (ctx) => mensagemEmDesenvolvimento(ctx, 'Tiro Certo'));
 
 bot.launch();
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
