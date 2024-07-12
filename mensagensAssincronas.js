@@ -1,14 +1,20 @@
+// mensagensAssincronas.js
+
 const xlsx = require('xlsx');
 const bot = require('./bot');
 const cron = require('node-cron');
 const path = require('path');
 const fs = require('fs');
-const lockfile = require('proper-lockfile');
+const { waitForLock } = require('./utils');
 const { enviarMensagemWhatsApp } = require('./whatsApp');
 
 const sentMessages = new Set(); // Conjunto para armazenar IDs das mensagens enviadas
 
-// Função para formatar o número de telefone para WhatsApp
+/**
+ * Função para formatar o número de telefone para WhatsApp.
+ * @param {string} numero - Número de telefone a ser formatado.
+ * @returns {string} - Número de telefone formatado.
+ */
 function formatarNumeroWhatsApp(numero) {
     let numeroFormatado = numero.replace(/\D/g, '');
     if (numeroFormatado.length === 13) {
@@ -17,8 +23,86 @@ function formatarNumeroWhatsApp(numero) {
     return numeroFormatado;
 }
 
-// Função para enviar mensagem sobre pagamento pendente
+/**
+ * Função para criar ou atualizar a planilha todosJogadores.
+ */
+async function atualizarPlanilhaJogadores() {
+    console.log('Executando atualizarPlanilhaJogadores...');
+    const filePath = path.join(__dirname, 'todosJogadores.xlsx');
+    const novosJogadoresFile = path.join(__dirname, 'NumerosSelecionadosAcumulado6.xlsx');
+
+    if (!fs.existsSync(novosJogadoresFile)) {
+        console.error('Arquivo NumerosSelecionadosAcumulado6 não encontrado.');
+        return;
+    }
+
+    let release;
+    try {
+        const dirPath = path.dirname(filePath);
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        let workbook;
+        let jogadoresSheet;
+
+        if (!fs.existsSync(filePath)) {
+            console.log('Arquivo todosJogadores.xlsx não encontrado. Criando novo workbook...');
+            workbook = xlsx.utils.book_new();
+            jogadoresSheet = xlsx.utils.aoa_to_sheet([['Nome', 'ID', 'Telefone']]);
+            xlsx.utils.book_append_sheet(workbook, jogadoresSheet, 'todosJogadores');
+            xlsx.writeFile(workbook, filePath);
+        }
+
+        release = await waitForLock(filePath);
+
+        workbook = xlsx.readFile(filePath);
+        jogadoresSheet = workbook.Sheets['todosJogadores'];
+
+        const jogadores = xlsx.utils.sheet_to_json(jogadoresSheet);
+        const idsExistentes = new Set(jogadores.map(jogador => jogador.ID));
+
+        const novosWorkbook = xlsx.readFile(novosJogadoresFile);
+        const novosWorksheet = novosWorkbook.Sheets['NumerosSelecionadosAcumulado6'];
+        const novosDados = xlsx.utils.sheet_to_json(novosWorksheet);
+
+        novosDados.forEach(novoJogador => {
+            if (!idsExistentes.has(novoJogador.ID)) {
+                jogadores.push({
+                    Nome: novoJogador.Nome,
+                    ID: novoJogador.ID,
+                    Telefone: novoJogador.Telefone
+                });
+            }
+        });
+
+        jogadores.sort((a, b) => a.Nome.localeCompare(b.Nome));
+
+        jogadoresSheet = xlsx.utils.json_to_sheet(jogadores, { header: ['Nome', 'ID', 'Telefone'] });
+        workbook.Sheets['todosJogadores'] = jogadoresSheet;
+
+        xlsx.writeFile(workbook, filePath);
+        console.log('Planilha todosJogadores atualizada.');
+    } catch (error) {
+        console.error('Erro ao atualizar a planilha:', error);
+    } finally {
+        if (release) {
+            await release();
+        }
+    }
+}
+
+// Agendar a função para rodar todos os dias às 3 da manhã
+cron.schedule('0 3 * * *', () => {
+    console.log('Executando tarefa cron de atualização da planilha de jogadores.');
+    atualizarPlanilhaJogadores();
+});
+
+/**
+ * Função para enviar mensagem sobre pagamento pendente.
+ */
 async function enviarMensagemPagamentoPendente() {
+    console.log('Executando enviarMensagemPagamentoPendente...');
     const fileName = path.join(__dirname, 'NumerosSelecionadosAcumulado6.xlsx');
 
     if (!fs.existsSync(fileName)) {
@@ -28,7 +112,7 @@ async function enviarMensagemPagamentoPendente() {
 
     let release;
     try {
-        release = await lockfile.lock(fileName);
+        release = await waitForLock(fileName);
 
         const workbook = xlsx.readFile(fileName);
         const worksheet = workbook.Sheets['NumerosSelecionadosAcumulado6'];
@@ -105,7 +189,9 @@ async function enviarMensagemPagamentoPendente() {
 
                         if (numeroWhatsApp) {
                             numeroWhatsApp = formatarNumeroWhatsApp(numeroWhatsApp); // Formatar número para WhatsApp
+                            console.log(`Enviando mensagem para ${numeroWhatsApp} no WhatsApp: ${mensagem}`);
                             await enviarMensagemWhatsApp(numeroWhatsApp, mensagem);
+                            console.log(`Enviando QR code para ${numeroWhatsApp} no WhatsApp: ${qrCode}`);
                             await enviarMensagemWhatsApp(numeroWhatsApp, qrCode); // Enviar QR code no WhatsApp
                         }
                     } catch (error) {
@@ -123,7 +209,12 @@ async function enviarMensagemPagamentoPendente() {
     }
 }
 
-// Função para enviar mensagem de confirmação de pagamento
+/**
+ * Função para enviar mensagem de confirmação de pagamento.
+ * @param {string} nomeUsuario - Nome do usuário.
+ * @param {number} telegramId - ID do usuário no Telegram.
+ * @param {string} numeroWhatsApp - Número de WhatsApp do usuário.
+ */
 async function enviarMensagemConfirmacaoPagamento(nomeUsuario, telegramId, numeroWhatsApp) {
     const mensagem = `Olá ${nomeUsuario}, seu pagamento foi confirmado com sucesso! Boa sorte!`;
 
@@ -150,13 +241,17 @@ async function enviarMensagemConfirmacaoPagamento(nomeUsuario, telegramId, numer
     }
 }
 
-// Função para enviar mensagem de lembrete para o dia do sorteio
+/**
+ * Função para enviar mensagem de lembrete para o dia do sorteio.
+ */
 function enviarLembreteSorteio() {
     // Lógica para enviar mensagem de lembrete para o dia do sorteio
     console.log('Enviando lembrete para o dia do sorteio...');
 }
 
-// Função para enviar mensagem de lembrete para o dia de início da rodada
+/**
+ * Função para enviar mensagem de lembrete para o dia de início da rodada.
+ */
 function enviarLembreteInicioRodada() {
     // Lógica para enviar mensagem de lembrete para o dia de início da rodada
     console.log('Enviando lembrete para o dia de início da rodada...');
@@ -169,5 +264,6 @@ module.exports = {
     enviarLembreteSorteio,
     enviarLembreteInicioRodada,
     enviarMensagemPagamentoPendente,
-    enviarMensagemConfirmacaoPagamento
+    enviarMensagemConfirmacaoPagamento,
+    atualizarPlanilhaJogadores
 };

@@ -1,0 +1,32 @@
+{
+    "sinopse": {
+        "titulo": "Década da Sorte",
+        "descricao": "Bem-vindos ao Década da Sorte! Escolha 10 números, aguarde o sorteio e torça para acertar 6 ou mais para ganhar. Boa sorte! 🌟✨"
+    },
+    "regras": {
+        "participacao": "Maiores de 18 anos podem jogar.",
+        "escolha_numeros": "Escolha 10 números entre 01 e 60. Verifique se foram registrados corretamente na planilha.",
+        "sorteio_numeros": "Os sorteios são baseados nos resultados da Mega-Sena às terças, quintas e sábados.",
+        "objetivo": "Ganha quem acertar 6 ou mais números primeiro. Em caso de empate, o prêmio é dividido.",
+        "dinamica": "Veja a dinâmica do jogo aqui: [link para a animação]",
+        "cadastro_numeros": "Envie o comprovante de pagamento e seus números escolhidos para cadastro.",
+        "divulgacao_numeros": "Números sorteados e classificação serão divulgados no grupo após cada sorteio.",
+        "inicio_jogo": "O jogo começa com o sorteio do concurso 2696 da Mega-Sena em 05/03/2024.",
+        "participacao_pagamento": "Cada aposta custa R$2500, pagável via PIX para 31 996284077. Pagamento deve ser feito até uma hora antes do primeiro sorteio.",
+        "valor_premio": "O prêmio é o valor total das apostas menos 15% de taxa de administração. Dividido entre ganhadores se houver empate.",
+        "pagamento_premio": "O prêmio será pago via Pix em até uma hora após o sorteio final.",
+        "informacoes_duvidas": "Informações e dúvidas serão resolvidas no grupo ou diretamente com o administrador.",
+        "link_grupo": "https://chat.whatsapp.com/EqT0aUy6Iuu2PxuhIugd4q"
+    },
+    "exemplos_praticos": {
+        "caso1": "Dois jogadores empatam com 6 pontos. Ambos são campeões.",
+        "caso2": "Um jogador tem 7 pontos e outro 6. O jogador com 7 pontos vence."
+    },
+    "contato": {
+        "administrador": {
+            "numero_pix": "31 996284077",
+            "email": "admin@decadasorte.com",
+            "telefone": "31 996284077"
+        }
+    }
+}

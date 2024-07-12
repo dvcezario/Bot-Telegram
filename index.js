@@ -1,12 +1,18 @@
+// index.js
+
 require('dotenv').config({ path: __dirname + '/.env' });
-const { Telegraf, Markup, session } = require('telegraf');
-const bot = new Telegraf(process.env.token);
+const token = process.env.token;
+
+const { Markup } = require('telegraf');
+const bot = require('./bot');
+const session = require('telegraf/session');
 const { proximaRodadaData } = require('./config');
 
 const { deleteAllMessages } = require('./telaInicial');
 const fs = require('fs');
 const resultados = require('./resultados');
 const cadastrarPix = require('./cadastrarPix');
+const { connectToInstagram } = require('./instagram'); // Importar o módulo Instagram
 const jogoAcumulado6 = require('./jogoAcumulado6');
 const jogoAcumulado10 = require('./jogoAcumulado10');
 const jogoTiroCerto = require('./jogoTiroCerto');
@@ -22,10 +28,6 @@ const {
     apresentarMenuLinkIndicacao, 
     apresentarMenuAjuda, 
     apresentarMenuCadastrarPix, 
-    apresentarSubMenuAcertoAcumulado, 
-    apresentarSubMenuAcertoAcumulado6, 
-    apresentarSubMenuAcertoAcumulado10, 
-    apresentarSubMenuTiroCerto 
 } = require('./menu');
 const { 
     apresentarTodosResultados, 
@@ -38,14 +40,18 @@ const {
     apresentarClassificacaoRodada 
 } = require('./classificacao');
 const { 
-    apresentarPremiacoes, 
-    apresentarPlanilhaJogadores 
+    apresentarPremiacoes,
+    apresentarPlanilhaJogadores,
+    apresentarSubMenuAcertoAcumulado6, 
+    apresentarSubMenuAcumulado10, 
+    apresentarSubMenuTiroCerto 
 } = require('./jogar');
 const { 
     enviarLembreteSorteio,
     enviarLembreteInicioRodada,
     enviarMensagemPagamentoPendente,
-    enviarMensagemConfirmacaoPagamento 
+    enviarMensagemConfirmacaoPagamento,
+    atualizarPlanilhaJogadores
 } = require('./mensagensAssincronas');
 const { 
     validatePhoneNumberAcumulado6, 
@@ -76,30 +82,21 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Middleware de sessão
-bot.use(session());
-
-// Middleware para inicializar ctx.session
-bot.use((ctx, next) => {
+// Remover duplicidade de chamar a tela inicial em bot.start
+bot.start(async (ctx, next) => {
+    // Initialize ctx.session.mensagensIDS if it doesn't exist
     if (!ctx.session) {
         ctx.session = {};
     }
     if (!ctx.session.mensagensIDS) {
         ctx.session.mensagensIDS = [];
     }
-    return next();
-});
-
-// Comando /start
-bot.start(async (ctx) => {
-    await ctx.deleteMessage(ctx.message.message_id); // Apagar o comando digitado pelo usuário
     if (ctx.session.mensagensIDS.length > 0) {
         await deleteAllMessages(ctx);
     }
     apresentarTelaInicial(ctx);
 });
 
-// Ações
 bot.action('menu_classificacao', apresentarMenuClassificacao);
 bot.action('menu_resultados', apresentarMenuResultados);
 bot.action('menu_jogar', apresentarMenuJogar);
@@ -109,55 +106,86 @@ bot.action('resultado_anterior', apresentarResultadoAnterior);
 bot.action('resultado_proximo', apresentarResultadoProximo);
 
 bot.action('voltar', async (ctx) => {
-    await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
-    apresentarTelaInicial(ctx); // Mostrar o menu inicial
+    await deleteAllMessages(ctx);
+    const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
+
+    await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
+        caption: `${from.first_name} ${from.last_name}, Seja Bem-Vindo ao Década da Sorte! ${proximaRodadaData}`,
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '⭐ Classificação', callback_data: 'menu_classificacao' },
+                    { text: '📊 Resultados', callback_data: 'menu_resultados' }
+                ],
+                [
+                    { text: '🎮 Jogar', callback_data: 'menu_jogar' },
+                    { text: 'ℹ️ Informações sobre Jogo', callback_data: 'menu_informacoes' }
+                ],
+                [
+                    { text: '🔗 Link de Indicação', callback_data: 'link_indicacao' },
+                    { text: '❓ Ajuda', callback_data: 'ajuda' }
+                ],
+                [
+                    { text: '❖ Cadastrar Pix', callback_data: 'menu_cadastrar_pix' },
+                ]
+            ]
+        }
+    });
 });
 
 bot.action('premiacoes_acumulado6', async (ctx) => {
-    await apresentarPremiacoes(ctx, 'Acumulado6');
+    await apresentarPremiacoes(ctx, 'acumulado6');
 });
 
 bot.action('premiacoes_acumulado10', async (ctx) => {
-    await apresentarPremiacoes(ctx, 'Acumulado10');
+    await apresentarPremiacoes(ctx, 'acumulado10');
 });
 
 bot.action('premiacoes_tiro_certo', async (ctx) => {
-    await apresentarPremiacoes(ctx, 'TiroCerto');
+    await apresentarPremiacoes(ctx, 'tiro_certo');
 });
 
 bot.action('planilha_jogadores_acumulado6', async (ctx) => {
-    await apresentarPlanilhaJogadores(ctx, 'Acumulado6');
+    await apresentarPlanilhaJogadores(ctx, 'acumulado6');
 });
 
 bot.action('planilha_jogadores_acumulado10', async (ctx) => {
-    await apresentarPlanilhaJogadores(ctx, 'Acumulado10');
+    await apresentarPlanilhaJogadores(ctx, 'acumulado10');
 });
 
 bot.action('planilha_jogadores_tiro_certo', async (ctx) => {
-    await apresentarPlanilhaJogadores(ctx, 'TiroCerto');
+    await apresentarPlanilhaJogadores(ctx, 'tiro_certo');
 });
 
 bot.action('todos_resultados', apresentarTodosResultados);
 bot.action('acerto_acumulado6', apresentarSubMenuAcertoAcumulado6);
+bot.action('sub_menu_acumulado6', apresentarSubMenuAcertoAcumulado6);
+bot.action('sub_menu_acumulado10', apresentarSubMenuAcumulado10);
+bot.action('sub_menu_tiro_certo', apresentarSubMenuTiroCerto);
 
-// Comentando as ações para funcionalidades não implementadas
-// bot.action('acerto_acumulado10', apresentarSubMenuAcertoAcumulado10);
-// bot.action('tiro_certo', apresentarSubMenuTiroCerto);
-// bot.action('link_indicacao', apresentarMenuLinkIndicacao);
+bot.action('acerto_acumulado10', (ctx) => mensagemEmDesenvolvimento(ctx, 'Acumulado - 10 Números 10 Acertos'));
+bot.action('tiro_certo', (ctx) => mensagemEmDesenvolvimento(ctx, 'Tiro Certo'));
+//bot.action('acerto_acumulado10', apresentarSubMenuAcumulado10);
+//bot.action('tiro_certo', apresentarSubMenuTiroCerto);
 
 bot.action('ajuda', apresentarMenuAjuda);
+
+bot.action('link_indicacao', (ctx) => mensagemEmDesenvolvimento(ctx, 'Link Indicação'));
+//bot.action('link_indicacao', apresentarMenuLinkIndicacao);
+
 bot.action('menu_informacoes', apresentarInformacoesJogo);
 bot.action('video_explicativo', enviarVideoExplicativo);
 bot.action('texto_explicativo', enviarTextoExplicativo);
 bot.action('informacoes_pagamento', enviarInformacoesPagamento);
 bot.action('informacoes_recebimento', enviarInformacoesRecebimento);
 
-// Mensagens para funcionalidades em desenvolvimento
+let isSending = false;
+
 const mensagemEmDesenvolvimento = async (ctx, funcionalidade) => {
     await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
     const from = ctx.callbackQuery ? ctx.callbackQuery.from : ctx.message.from;
     const mensagem = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
-        caption: `Desculpe pelo transtorno, ${from.first_name} ${from.last_name}. A funcionalidade ${funcionalidade} ainda está em desenvolvimento e logo estará disponível.`,
+        caption: `⚠️ Desculpe pelo transtorno, ${from.first_name} ${from.last_name}. A funcionalidade ${funcionalidade} ainda está em desenvolvimento e logo estará disponível.`,
         reply_markup: {
             inline_keyboard: [
                 [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
@@ -166,10 +194,6 @@ const mensagemEmDesenvolvimento = async (ctx, funcionalidade) => {
     });
     ctx.session.mensagensIDS.push(mensagem.message_id); // Adicionar a mensagem à sessão para exclusão futura
 };
-
-bot.action('acerto_acumulado10', (ctx) => mensagemEmDesenvolvimento(ctx, 'Acumulado - 10 Números 10 Acertos'));
-bot.action('tiro_certo', (ctx) => mensagemEmDesenvolvimento(ctx, 'Tiro Certo'));
-bot.action('link_indicacao', (ctx) => mensagemEmDesenvolvimento(ctx, 'Link de Indicação'));
 
 // Comandos
 bot.command('classificacao', async (ctx) => {
@@ -424,21 +448,6 @@ bot.action('cadastrar_pix_email', cadastrarPixEmail);
 bot.action('cadastrar_pix_celular', cadastrarPixCelular);
 bot.action('cadastrar_pix_aleatoria', cadastrarPixChaveAleatoria);
 
-// Função para enviar mensagem de erro com logo
-const enviarMensagemErroComLogo = async (ctx, mensagemErro) => {
-    await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
-    await ctx.deleteMessage(ctx.message.message_id); // Apagar a mensagem enviada pelo usuário
-    const mensagem = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
-        caption: mensagemErro,
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
-            ]
-        }
-    });
-    ctx.session.mensagensIDS.push(mensagem.message_id); // Adicionar a mensagem à sessão para exclusão futura
-};
-
 // Manipulador de texto para diferentes fluxos
 bot.on('text', async (ctx) => {
     if (ctx.session.awaitingPhoneNumberForPix) {
@@ -450,12 +459,16 @@ bot.on('text', async (ctx) => {
     } else if (ctx.session.step) {
         await cadastrarPix.handlePixText(ctx);
     } else {
-        await enviarMensagemErroComLogo(ctx, 'Comando ou texto não reconhecido.');
+        await ctx.reply('Comando ou texto não reconhecido.');
     }
 });
 
 // Chamar a função para envio de Mensagens Assincronas
 enviarMensagemPagamentoPendente();
+atualizarPlanilhaJogadores();
+
+// Conectar ao Instagram
+//connectToInstagram();
 
 bot.action('participar_jogo_acumulado6', (ctx) => {
     jogoAcumulado6.validatePhoneNumberAcumulado6(ctx, ctx.from.phone_number);
@@ -463,6 +476,14 @@ bot.action('participar_jogo_acumulado6', (ctx) => {
 
 bot.action('participar_jogo_acumulado10', (ctx) => mensagemEmDesenvolvimento(ctx, 'Acumulado - 10 Números 10 Acertos'));
 bot.action('participar_jogo_tiro_certo', (ctx) => mensagemEmDesenvolvimento(ctx, 'Tiro Certo'));
+
+/*bot.action('participar_jogo_acumulado10', (ctx) => {
+    validatePhoneNumberAcumulado10(ctx, ctx.from.phone_number);
+});
+
+bot.action('participar_jogo_tiro_certo', (ctx) => {
+    validatePhoneNumberTiroCerto(ctx, ctx.from.phone_number);
+});*/
 
 bot.launch();
 

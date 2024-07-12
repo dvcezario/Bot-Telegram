@@ -1,18 +1,12 @@
+// menu.js
+
 const { Markup } = require('telegraf');
 const { apresentarTelaInicial, deleteAllMessages } = require('./telaInicial');
 const { apresentarLinkIndicacao } = require('./linkIndicacao');
-const { proximaRodadaData } = require('./config');
-
-const MENU_CLASSIFICACAO = 'menu_classificacao';
-const MENU_RESULTADOS = 'menu_resultados';
-const MENU_JOGAR = 'menu_jogar';
-const MENU_ACERTO_ACUMULADO6 = 'menu_acerto_acumulado6';
-const MENU_ACERTO_ACUMULADO10 = 'menu_acerto_acumulado10';
-const MENU_TIRO_CERTO = 'menu_tiro_certo';
-const MENU_CADASTRAR_PIX = 'menu_cadastrar_pix';
+const { obterProximaRodadaData } = require('./config');
 
 async function apresentarMenuClassificacao(ctx) {
-    if (ctx.callbackQuery) {
+    try {
         await ctx.editMessageCaption('Selecione o tipo de classificação:', {
             reply_markup: {
                 inline_keyboard: [
@@ -23,13 +17,14 @@ async function apresentarMenuClassificacao(ctx) {
             }
         });
         ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-    } else {
+    } catch (error) {
+        console.error('Erro ao apresentar o menu de classificação:', error);
         apresentarTelaInicial(ctx);
     }
 }
 
 async function apresentarMenuResultados(ctx) {
-    if (ctx.callbackQuery) {
+    try {
         await ctx.editMessageCaption('Selecione quais Resultados:', {
             reply_markup: {
                 inline_keyboard: [
@@ -42,13 +37,14 @@ async function apresentarMenuResultados(ctx) {
             }
         });
         ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-    } else {
+    } catch (error) {
+        console.error('Erro ao apresentar o menu de resultados:', error);
         apresentarTelaInicial(ctx);
     }
 }
 
 async function apresentarMenuJogar(ctx) {
-    if (ctx.callbackQuery) {
+    try {
         await ctx.editMessageCaption('Selecione uma opção para jogar:', {
             reply_markup: {
                 inline_keyboard: [
@@ -60,7 +56,8 @@ async function apresentarMenuJogar(ctx) {
             }
         });
         ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-    } else {
+    } catch (error) {
+        console.error('Erro ao apresentar o menu jogar:', error);
         apresentarTelaInicial(ctx);
     }
 }
@@ -71,46 +68,46 @@ async function apresentarInformacoesJogo(ctx) {
     if (isSending) return;
     isSending = true;
     try {
-        if (ctx.callbackQuery) {
-            await ctx.editMessageCaption('Informações sobre Jogo', {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '📹 Vídeo Explicativo', callback_data: 'video_explicativo' }],
-                        [{ text: '📄 Texto Explicativo', callback_data: 'texto_explicativo' }],
-                        [{ text: '💳 Pagamento do Jogo', callback_data: 'informacoes_pagamento' }],
-                        [{ text: '💰 Recebimento do Prêmio', callback_data: 'informacoes_recebimento' }],
-                        [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
-                    ]
-                }
-            });
-            ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-        } else {
-            apresentarTelaInicial(ctx);
-        }
-    } catch (err) {
-        if (err.response && err.response.error_code !== 400) {
-            throw err;
-        }
+        await ctx.editMessageCaption('Informações sobre Jogo', {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '📹 Vídeo Explicativo', callback_data: 'video_explicativo' }],
+                    [{ text: '📄 Texto Explicativo', callback_data: 'texto_explicativo' }],
+                    [{ text: '💳 Pagamento do Jogo', callback_data: 'informacoes_pagamento' }],
+                    [{ text: '💰 Recebimento do Prêmio', callback_data: 'informacoes_recebimento' }],
+                    [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
+                ]
+            }
+        });
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+    } catch (error) {
+        console.error('Erro ao apresentar informações do jogo:', error);
+        apresentarTelaInicial(ctx);
     } finally {
         isSending = false;
     }
 }
 
 async function apresentarMenuLinkIndicacao(ctx) {
-    const { mensagem } = apresentarLinkIndicacao(ctx);
+    try {
+        const { mensagem } = apresentarLinkIndicacao(ctx);
 
-    await ctx.editMessageCaption(
-        mensagem,
-        {
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
-                ]
-            },
-            parse_mode: 'Markdown'
-        }
-    );
-    ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+        await ctx.editMessageCaption(
+            mensagem,
+            {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
+                    ]
+                },
+                parse_mode: 'Markdown'
+            }
+        );
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+    } catch (error) {
+        console.error('Erro ao apresentar o menu de link de indicação:', error);
+        apresentarTelaInicial(ctx);
+    }
 }
 
 async function apresentarMenuAjuda(ctx) {
@@ -127,17 +124,16 @@ async function apresentarMenuAjuda(ctx) {
             }
         });
         ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-    } catch (err) {
-        if (err.response && err.response.error_code !== 400) {
-            throw err;
-        }
+    } catch (error) {
+        console.error('Erro ao apresentar o menu de ajuda:', error);
+        apresentarTelaInicial(ctx);
     } finally {
         isSending = false;
     }
 }
 
 async function apresentarMenuCadastrarPix(ctx) {
-    if (ctx.callbackQuery) {
+    try {
         await ctx.editMessageCaption('Cadastre sua chave Pix:', {
             reply_markup: {
                 inline_keyboard: [
@@ -154,7 +150,8 @@ async function apresentarMenuCadastrarPix(ctx) {
             }
         });
         ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-    } else {
+    } catch (error) {
+        console.error('Erro ao apresentar o menu cadastrar Pix:', error);
         apresentarTelaInicial(ctx);
     }
 }
@@ -170,71 +167,59 @@ async function deleteSubmenuMessages(ctx) {
 }
 
 async function apresentarSubMenuAcertoAcumulado6(ctx) {
-    if (ctx.callbackQuery) {
-        try {
-            await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado 6:', {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🏁 Participar do Jogo', callback_data: 'participar_jogo_acumulado6' }],
-                        [{ text: '🏆 Premiações', callback_data: 'premiacoes_acumulado6' }],
-                        [{ text: '🧍‍♂️🧍‍♀️🧍 Planilha de Jogadores', callback_data: 'planilha_jogadores_acumulado6' }],
-                        [{ text: '🎮 Menu Anterior', callback_data: 'menu_jogar' }],
-                        [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
-                    ]
-                }
-            });
-            ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-        } catch (err) {
-            if (err.response && err.response.error_code !== 400) {
-                throw err;
+    try {
+        await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado 6:', {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🏁 Participar do Jogo', callback_data: 'participar_jogo_acumulado6' }],
+                    [{ text: '🏆 Premiações', callback_data: 'premiacoes_acumulado6' }],
+                    [{ text: '🧍‍♂️🧍‍♀️🧍 Planilha de Jogadores', callback_data: 'planilha_jogadores_acumulado6' }],
+                    [{ text: '🎮 Menu Anterior', callback_data: 'menu_jogar' }],
+                    [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
+                ]
             }
-        }
+        });
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+    } catch (error) {
+        console.error('Erro ao apresentar o submenu Acerto Acumulado 6:', error);
     }
 }
 
 async function apresentarSubMenuAcertoAcumulado10(ctx) {
-    if (ctx.callbackQuery) {
-        try {
-            await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado 10:', {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🏁 Participar do Jogo', callback_data: 'participar_jogo_acumulado10' }],
-                        [{ text: '🏆 Premiações', callback_data: 'premiacoes_acumulado10' }],
-                        [{ text: '🧍‍♂️🧍‍♀️🧍 Planilha de Jogadores', callback_data: 'planilha_jogadores_acumulado10' }],
-                        [{ text: '🎮 Menu Anterior', callback_data: 'menu_jogar' }],
-                        [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
-                    ]
-                }
-            });
-            ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-        } catch (err) {
-            if (err.response && err.response.error_code !== 400) {
-                throw err;
+    try {
+        await ctx.editMessageCaption('Selecione uma opção para Acerto Acumulado 10:', {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🏁 Participar do Jogo', callback_data: 'participar_jogo_acumulado10' }],
+                    [{ text: '🏆 Premiações', callback_data: 'premiacoes_acumulado10' }],
+                    [{ text: '🧍‍♂️🧍‍♀️🧍 Planilha de Jogadores', callback_data: 'planilha_jogadores_acumulado10' }],
+                    [{ text: '🎮 Menu Anterior', callback_data: 'menu_jogar' }],
+                    [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
+                ]
             }
-        }
+        });
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+    } catch (error) {
+        console.error('Erro ao apresentar o submenu Acerto Acumulado 10:', error);
     }
 }
 
 async function apresentarSubMenuTiroCerto(ctx) {
-    if (ctx.callbackQuery) {
-        try {
-            await ctx.editMessageCaption('Selecione uma opção para Tiro Certo:', {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🏁 Participar do Jogo', callback_data: 'participar_jogo_tiro_certo' }],
-                        [{ text: '🏆 Premiações', callback_data: 'premiacoes_tiro_certo' }],
-                        [{ text: '🧍‍♂️🧍‍♀️🧍 Planilha de Jogadores', callback_data: 'planilha_jogadores_tiro_certo' }],
-                        [{ text: '🎮 Menu Anterior', callback_data: 'menu_jogar' }],
-                        [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
-                    ]
-                }
-            });
-            ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
-        } catch (err) {
-            if (err.response && err.response.error_code !== 400) {
-                throw err;
+    try {
+        await ctx.editMessageCaption('Selecione uma opção para Tiro Certo:', {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🏁 Participar do Jogo', callback_data: 'participar_jogo_tiro_certo' }],
+                    [{ text: '🏆 Premiações', callback_data: 'premiacoes_tiro_certo' }],
+                    [{ text: '🧍‍♂️🧍‍♀️🧍 Planilha de Jogadores', callback_data: 'planilha_jogadores_tiro_certo' }],
+                    [{ text: '🎮 Menu Anterior', callback_data: 'menu_jogar' }],
+                    [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
+                ]
             }
-        }
+        });
+        ctx.session.mensagensIDS.push(ctx.callbackQuery.message.message_id);
+    } catch (error) {
+        console.error('Erro ao apresentar o submenu Tiro Certo:', error);
     }
 }
 

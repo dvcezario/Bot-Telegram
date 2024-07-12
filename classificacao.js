@@ -1,7 +1,9 @@
+// classificacao.js
+
 const { Markup } = require('telegraf');
 const fs = require('fs');
 const path = require('path');
-const { apresentarTelaInicial, mensagensIDS } = require('./telaInicial');
+const { apresentarTelaInicial } = require('./telaInicial');
 const bot = require('./bot');
 
 // Constantes de menu
@@ -11,18 +13,12 @@ const MENU_CLASSIFICACAO = 'menu_classificacao';
 function apresentarMenuClassificacao(ctx) {
     const menuState = MENU_CLASSIFICACAO;
     if (ctx.callbackQuery) {
-        ctx.editMessageCaption('Selecione o tipo de classificação:', {
+        ctx.editMessageCaption('📊 Selecione o tipo de classificação:', {
             reply_markup: {
                 inline_keyboard: [
-                    [
-                        { text: '👑 Classificação Geral', callback_data: 'classificacao_geral' }
-                    ],
-                    [
-                        { text: '🎖️ Classificação da Rodada', callback_data: 'classificacao_rodada' }
-                    ],
-                    [
-                        { text: '🏠 Menu Inicial', callback_data: 'voltar' }
-                    ]
+                    [{ text: '👑 Classificação Geral', callback_data: 'classificacao_geral' }],
+                    [{ text: '🎖️ Classificação da Rodada', callback_data: 'classificacao_rodada' }],
+                    [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
                 ]
             }
         });
@@ -41,7 +37,7 @@ async function carregarBarraProgressoVisual(ctx, message, totalSteps = 10, delay
         await new Promise(resolve => setTimeout(resolve, delay));
         const progress = Math.floor((i / totalSteps) * 100);
         const progressBar = `[${fullBlock.repeat(i)}${emptyBlock.repeat(totalSteps - i)}] ${progress}%`;
-        await ctx.telegram.editMessageText(ctx.chat.id, message.message_id, null, `Carregando... \n ${progressBar}`);
+        await ctx.telegram.editMessageText(ctx.chat.id, message.message_id, null, `⏳ Carregando... \n ${progressBar}`);
     }
 }
 
@@ -52,7 +48,7 @@ function calcularDelay(tempoTotalEmSegundos, totalSteps = 10) {
 
 // Função genérica para carregar e enviar um PDF de classificação
 async function apresentarClassificacao(ctx, tipo) {
-    const loadingMessage = await ctx.reply('Carregando... \n [⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜] 0%');
+    const loadingMessage = await ctx.reply('⏳ Carregando... \n [⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜] 0%');
     let fileMessageId;
 
     try {
@@ -72,10 +68,8 @@ async function apresentarClassificacao(ctx, tipo) {
         // Restaurar os botões após o carregamento
         await ctx.editMessageReplyMarkup({
             inline_keyboard: [
-                [
-                    { text: '👑 Classificação Geral', callback_data: 'classificacao_geral' },
-                    { text: '🎖️ Classificação da Rodada', callback_data: 'classificacao_rodada' }
-                ],
+                [{ text: '👑 Classificação Geral', callback_data: 'classificacao_geral' }],
+                [{ text: '🎖️ Classificação da Rodada', callback_data: 'classificacao_rodada' }],
                 [{ text: '🏠 Menu Inicial', callback_data: 'voltar' }]
             ]
         });
@@ -91,7 +85,7 @@ async function apresentarClassificacao(ctx, tipo) {
 
     } catch (error) {
         console.error(`Erro ao enviar o PDF de ${tipo}:`, error);
-        await ctx.reply('Desculpe, houve um erro ao enviar o arquivo.');
+        await ctx.reply('❌ Desculpe, houve um erro ao enviar o arquivo.');
     } finally {
         await ctx.telegram.deleteMessage(ctx.chat.id, loadingMessage.message_id);
     }

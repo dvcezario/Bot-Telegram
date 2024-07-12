@@ -1,3 +1,5 @@
+// cadastrarPix.js
+
 const fs = require('fs');
 const xlsx = require('xlsx');
 const bot = require('./bot');
@@ -5,6 +7,7 @@ const lockfile = require('proper-lockfile');
 const path = require('path');
 const { deleteAllMessages } = require('./telaInicial');
 const { proximaRodadaData } = require('./config');
+const { waitForLock } = require('./utils');
 
 const photoPath = path.join(__dirname, 'Logo3.jpg');
 
@@ -15,9 +18,8 @@ async function salvarInformacoesPix(valorChavePix, tipoChavePix, nomeRecebedor, 
     const nomeUsuario = ctx.message.from.first_name;
     const idUsuario = ctx.message.from.id;
 
-    // Verifica se o arquivo da planilha já existe
+    // Cria o arquivo e a planilha se não existirem
     if (!fs.existsSync(filePath)) {
-        // Cria uma nova planilha se não existir
         const worksheetData = [
             ['Nome do Usuário', 'ID do Usuário', 'Número de Telefone', 'Tipo de Chave Pix', 'Valor da Chave Pix', 'Nome do Recebedor', 'Nome do Banco'],
         ];
@@ -29,28 +31,26 @@ async function salvarInformacoesPix(valorChavePix, tipoChavePix, nomeRecebedor, 
 
     let release;
     try {
-        release = await lockfile.lock(filePath);
+        release = await waitForLock(filePath);
 
         const workbook = xlsx.readFile(filePath);
         const worksheet = workbook.Sheets['InformacoesPix'];
 
-        // Verifica se a chave Pix já está cadastrada na planilha
         const existentPixData = xlsx.utils.sheet_to_json(worksheet);
         const existingPix = existentPixData.find(row => row['Tipo de Chave Pix'] === tipoChavePix && row['Valor da Chave Pix'] === valorChavePix);
 
         if (existingPix) {
-            return 'Esta chave Pix já está cadastrada.';
+            return '⚠️ Esta chave Pix já está cadastrada.';
         }
 
-        // Adiciona as informações do Pix à planilha
         const newRow = [nomeUsuario, idUsuario, numeroTelefone, tipoChavePix, valorChavePix, nomeRecebedor, nomeBanco];
         xlsx.utils.sheet_add_aoa(worksheet, [newRow], { origin: -1 });
         xlsx.writeFile(workbook, filePath);
 
-        return 'Chave Pix cadastrada com sucesso!';
+        return '✅ Chave Pix cadastrada com sucesso!';
     } catch (error) {
         console.error('Erro ao salvar informações do Pix:', error);
-        return 'Erro ao cadastrar a chave Pix.';
+        return '❌ Erro ao cadastrar a chave Pix. Tente novamente.';
     } finally {
         if (release) {
             await release();
@@ -86,33 +86,33 @@ async function obterTexto(ctx, regex, mensagemErro, tipoChave, proximoPasso) {
     ctx.session.tipoChavePix = tipoChave;
     ctx.session.valorChavePix = valor;
     ctx.session.step = proximoPasso;
-    const mensagemProxima = 'Por favor, digite o nome do recebedor.';
+    const mensagemProxima = '✍️ Por favor, digite o nome do recebedor.';
     await enviarMensagemComLogo(ctx, mensagemProxima);
     await ctx.deleteMessage(ctx.message.message_id);
 }
 
 // Funções para obter cada tipo de chave Pix
 async function obterCPF_CNPJ(ctx) {
-    await obterTexto(ctx, /^\d{11}$|^\d{14}$/, 'Por favor, digite um CPF válido (11 dígitos) ou um CNPJ válido (14 dígitos).', 'CPF/CNPJ', 'obterNomeRecebedor');
+    await obterTexto(ctx, /^\d{11}$|^\d{14}$/, '❗ Por favor, digite um CPF válido (11 dígitos) ou um CNPJ válido (14 dígitos).', 'CPF/CNPJ', 'obterNomeRecebedor');
 }
 
 async function obterEmail(ctx) {
-    await obterTexto(ctx, /^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Por favor, digite um e-mail válido.', 'E-MAIL', 'obterNomeRecebedor');
+    await obterTexto(ctx, /^[^\s@]+@[^\s@]+\.[^\s@]+$/, '❗ Por favor, digite um e-mail válido.', 'E-MAIL', 'obterNomeRecebedor');
 }
 
 async function obterCelular(ctx) {
-    await obterTexto(ctx, /^\d{2}\s?\d{9}$/, 'Por favor, digite um número de celular válido com 11 dígitos.', 'CELULAR', 'obterNomeRecebedor');
+    await obterTexto(ctx, /^\d{2}\s?\d{9}$/, '❗ Por favor, digite um número de celular válido com 11 dígitos.', 'CELULAR', 'obterNomeRecebedor');
 }
 
 async function obterChaveAleatoria(ctx) {
-    await obterTexto(ctx, /^.{32}$/, 'Por favor, digite uma chave aleatória válida com 32 caracteres.', 'CHAVE', 'obterNomeRecebedor');
+    await obterTexto(ctx, /^.{32}$/, '❗ Por favor, digite uma chave aleatória válida com 32 caracteres.', 'CHAVE', 'obterNomeRecebedor');
 }
 
 // Função para obter o nome do recebedor
 async function obterNomeRecebedor(ctx) {
     ctx.session.nomeRecebedor = ctx.message.text.trim();
     ctx.session.step = 'obterNomeBanco';
-    const mensagemProxima = 'Por favor, digite o nome do banco.';
+    const mensagemProxima = '🏦 Por favor, digite o nome do banco.';
     await enviarMensagemComLogo(ctx, mensagemProxima);
     await ctx.deleteMessage(ctx.message.message_id);
 }
@@ -121,7 +121,7 @@ async function obterNomeRecebedor(ctx) {
 async function obterNomeBanco(ctx) {
     ctx.session.nomeBanco = ctx.message.text.trim();
     ctx.session.step = 'obterNumeroTelefone';
-    const mensagemProxima = 'Por favor, digite o número de telefone.';
+    const mensagemProxima = '📞 Por favor, digite o número de telefone.';
     await enviarMensagemComLogo(ctx, mensagemProxima);
     await ctx.deleteMessage(ctx.message.message_id);
 }
@@ -131,7 +131,7 @@ async function obterNumeroTelefone(ctx) {
     const numeroTelefone = ctx.message.text.trim();
     const regex = /^\d{2}\s?\d{9}$/;
     if (!regex.test(numeroTelefone)) {
-        await enviarMensagemComLogo(ctx, 'Por favor, digite um número de telefone válido com 11 dígitos.');
+        await enviarMensagemComLogo(ctx, '❗ Por favor, digite um número de telefone válido com 11 dígitos.');
         await ctx.deleteMessage(ctx.message.message_id);
         return;
     }
@@ -183,19 +183,19 @@ async function iniciarCadastroPix(ctx, tipo) {
     let mensagemInicial;
     switch (tipo) {
         case 'obterCPF_CNPJ':
-            mensagemInicial = 'Por favor, digite seu CPF ou CNPJ.';
+            mensagemInicial = '📝 Por favor, digite seu CPF ou CNPJ.';
             break;
         case 'obterEmail':
-            mensagemInicial = 'Por favor, digite seu e-mail.';
+            mensagemInicial = '📧 Por favor, digite seu e-mail.';
             break;
         case 'obterCelular':
-            mensagemInicial = 'Por favor, digite seu número de celular.';
+            mensagemInicial = '📱 Por favor, digite seu número de celular.';
             break;
         case 'obterChaveAleatoria':
-            mensagemInicial = 'Por favor, digite sua chave aleatória.';
+            mensagemInicial = '🔑 Por favor, digite sua chave aleatória.';
             break;
         default:
-            mensagemInicial = 'Por favor, digite a informação solicitada.';
+            mensagemInicial = 'ℹ️ Por favor, digite a informação solicitada.';
     }
 
     await enviarMensagemComLogo(ctx, mensagemInicial);
@@ -249,7 +249,7 @@ async function handlePixText(ctx) {
             await obterNumeroTelefone(ctx);
             break;
         default:
-            const mensagemDefault = 'Por favor, use um comando válido para iniciar o cadastro.';
+            const mensagemDefault = '⚠️ Por favor, use um comando válido para iniciar o cadastro.';
             await enviarMensagemComLogo(ctx, mensagemDefault);
     }
 }

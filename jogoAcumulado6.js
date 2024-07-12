@@ -2,7 +2,8 @@ const { isValidPhoneNumber, gerarQRCodePix, inserirIDPagamentoNaPlanilha, create
 const { Markup } = require('telegraf');
 const { deleteAllMessages, apresentarTelaInicial } = require('./telaInicial');
 const bot = require('./bot');
-const sharp = require('sharp'); // Adiciona sharp para redimensionar imagens
+const sharp = require('sharp');
+const { waitForLock } = require('./utils');
 
 let mensagemEscolhaNumerosId;
 let mensagemErroId;
@@ -32,16 +33,28 @@ async function validatePhoneNumberAcumulado6(ctx) {
 // Função para manipular o texto do número de telefone
 async function handleJogoAcumulado6Text(ctx) {
     const response = ctx.message.text.trim();
+    console.log(`Texto recebido: ${response}`); // Log para depuração
 
     if (isValidPhoneNumber(response) && ctx.session.awaitingPhoneNumberForGame) {
         ctx.session.userPhoneNumber = response;
         ctx.session.awaitingPhoneNumberForGame = false;
         await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
-        await ctx.deleteMessage(ctx.message.message_id); // Apagar a mensagem do número de telefone digitado
+
+        try {
+            await ctx.deleteMessage(ctx.message.message_id);
+        } catch (error) {
+            console.error('Erro ao deletar a mensagem do número de telefone digitado:', error);
+        }
+
         if (mensagemSolicitacaoTelefoneId) {
-            await ctx.deleteMessage(mensagemSolicitacaoTelefoneId); // Apagar a mensagem solicitando o número de telefone
+            try {
+                await ctx.deleteMessage(mensagemSolicitacaoTelefoneId);
+            } catch (error) {
+                console.error('Erro ao deletar a mensagem solicitando o número de telefone:', error);
+            }
             mensagemSolicitacaoTelefoneId = null;
         }
+
         const keyboard = createNumericKeyboard(ctx, ctx.session.selectedNumbers);
         const message = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
             caption: 'Escolha seus 10 números:',
@@ -49,15 +62,31 @@ async function handleJogoAcumulado6Text(ctx) {
         });
         ctx.session.mensagensIDS.push(message.message_id);
         mensagemEscolhaNumerosId = message.message_id;
+        console.log('Teclado numérico enviado.'); // Log para depuração
     } else if (ctx.session.awaitingPhoneNumberForGame) {
-        await ctx.deleteMessage(ctx.message.message_id); // Apagar a mensagem do número de telefone digitado
+        try {
+            await ctx.deleteMessage(ctx.message.message_id);
+        } catch (error) {
+            console.error('Erro ao deletar a mensagem do número de telefone digitado:', error);
+        }
+
         if (mensagemSolicitacaoTelefoneId) {
-            await ctx.deleteMessage(mensagemSolicitacaoTelefoneId); // Apagar a mensagem solicitando o número de telefone
+            try {
+                await ctx.deleteMessage(mensagemSolicitacaoTelefoneId);
+            } catch (error) {
+                console.error('Erro ao deletar a mensagem solicitando o número de telefone:', error);
+            }
             mensagemSolicitacaoTelefoneId = null;
         }
+
         if (mensagemErroId) {
-            await ctx.deleteMessage(mensagemErroId); // Apagar a mensagem de erro anterior
+            try {
+                await ctx.deleteMessage(mensagemErroId);
+            } catch (error) {
+                console.error('Erro ao deletar a mensagem de erro anterior:', error);
+            }
         }
+
         const salvarID3 = await ctx.replyWithPhoto({ source: 'Logo3.jpg' }, {
             caption: 'Número inválido. Por favor, digite um número de celular válido com 11 dígitos.',
             reply_markup: {
@@ -68,6 +97,7 @@ async function handleJogoAcumulado6Text(ctx) {
         });
         ctx.session.mensagensIDS.push(salvarID3.message_id);
         mensagemErroId = salvarID3.message_id; // Armazenar o id da nova mensagem de erro
+        console.log('Mensagem de erro enviada para número inválido.'); // Log para depuração
     } else {
         apresentarTelaInicial(ctx);
     }
@@ -94,12 +124,18 @@ bot.action('voltar', async (ctx) => {
 
 bot.action(/^[1-9]\d*$/, async (ctx) => {
     const number = parseInt(ctx.match[0]);
+    console.log(`Número clicado: ${number}`); // Log para depuração
+
     if (!ctx.session.selectedNumbers) {
         ctx.session.selectedNumbers = [];
     }
+
     const index = ctx.session.selectedNumbers.indexOf(number);
+    console.log(`Números selecionados antes da mudança: ${ctx.session.selectedNumbers}`); // Log para depuração
+
     if (index === -1) {
         if (ctx.session.selectedNumbers.length >= 10) {
+            const mensagem = 'Já foram selecionados 10 números.';
             if (mensagemErroId) {
                 try {
                     await ctx.deleteMessage(mensagemErroId);
@@ -107,26 +143,35 @@ bot.action(/^[1-9]\d*$/, async (ctx) => {
                     console.error('Erro ao deletar a mensagem de erro anterior:', error);
                 }
             }
-            const salvarID = await ctx.reply('Já foram selecionados 10 números.');
+            const salvarID = await ctx.reply(mensagem);
             mensagemErroId = salvarID.message_id;
             ctx.session.mensagensIDS.push(salvarID.message_id);
+            console.log(`Mensagem de erro enviada: ${mensagem}`); // Log para depuração
             return;
         }
         ctx.session.selectedNumbers.push(number);
     } else {
         ctx.session.selectedNumbers.splice(index, 1);
     }
+
+    console.log(`Números selecionados após a mudança: ${ctx.session.selectedNumbers}`); // Log para depuração
+
     const keyboardData = createNumericKeyboard(ctx, ctx.session.selectedNumbers);
     const message = ctx.callbackQuery.message;
 
-    if (message.photo) {
-        await ctx.editMessageCaption('Escolha os seus 10 números:', {
-            reply_markup: { inline_keyboard: keyboardData }
-        });
-    } else {
-        await ctx.editMessageText('Escolha os seus 10 números:', {
-            reply_markup: { inline_keyboard: keyboardData }
-        });
+    try {
+        if (message.photo) {
+            await ctx.editMessageCaption('Escolha os seus 10 números:', {
+                reply_markup: { inline_keyboard: keyboardData }
+            });
+        } else {
+            await ctx.editMessageText('Escolha os seus 10 números:', {
+                reply_markup: { inline_keyboard: keyboardData }
+            });
+        }
+        console.log('Mensagem editada com novo teclado numérico.'); // Log para depuração
+    } catch (error) {
+        console.error('Erro ao editar a mensagem:', error);
     }
 });
 

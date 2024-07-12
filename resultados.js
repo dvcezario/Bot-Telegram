@@ -1,3 +1,5 @@
+// resultados.js
+
 const { Markup } = require('telegraf');
 const axios = require('axios');
 const bot = require('./bot');
@@ -13,7 +15,7 @@ async function obterUltimoResultado() {
         const response = await axios.get('https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena');
         return response.data;
     } catch (error) {
-        console.error('Erro ao obter o último resultado da Mega-Sena:', error);
+        console.error('❌ Erro ao obter o último resultado da Mega-Sena:', error);
         return null;
     }
 }
@@ -21,7 +23,7 @@ async function obterUltimoResultado() {
 async function apresentarTodosResultados(ctx) {
     const ultimoResultado = await obterUltimoResultado();
     if (!ultimoResultado) {
-        await enviarMensagemComLogo(ctx, 'Desculpe, não foi possível obter as informações do concurso no momento.');
+        await enviarMensagemComLogo(ctx, '❌ Desculpe, não foi possível obter as informações do concurso no momento.');
         return;
     }
 
@@ -34,13 +36,13 @@ async function apresentarTodosResultados(ctx) {
 
 async function apresentarResultadoAnterior(ctx) {
     if (!ultimoConcursoConsultado || ultimoConcursoConsultado === 1) {
-        await editarMensagem(ctx, 'Não existe concurso anterior.');
+        await editarMensagem(ctx, '❌ Não existe concurso anterior.');
         return;
     }
 
     const resultadoAnterior = await obterResultadoPorConcurso(ultimoConcursoConsultado - 1);
     if (!resultadoAnterior) {
-        await editarMensagem(ctx, 'Não existe concurso anterior.');
+        await editarMensagem(ctx, '❌ Não existe concurso anterior.');
         return;
     }
 
@@ -52,13 +54,13 @@ async function apresentarResultadoAnterior(ctx) {
 async function apresentarResultadoProximo(ctx) {
     const ultimoResultado = await obterUltimoResultado();
     if (ultimoConcursoConsultado + 1 > ultimoResultado.numero) {
-        await editarMensagem(ctx, `O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`);
+        await editarMensagem(ctx, `❌ O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`);
         return;
     }
 
     const proximoResultado = await obterResultadoPorConcurso(ultimoConcursoConsultado + 1);
     if (!proximoResultado) {
-        await editarMensagem(ctx, `O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`);
+        await editarMensagem(ctx, `❌ O concurso ${ultimoConcursoConsultado + 1} ainda não foi realizado.`);
         return;
     }
 
@@ -68,7 +70,7 @@ async function apresentarResultadoProximo(ctx) {
 }
 
 async function buscarResultadoPorConcurso(ctx) {
-    await enviarMensagemComLogo(ctx, 'Por favor, digite o número do concurso:');
+    await enviarMensagemComLogo(ctx, '🔍 Por favor, digite o número do concurso:');
     ctx.session.awaitingNumeroConcurso = true;
 }
 
@@ -78,7 +80,7 @@ async function escutarNumeroConcurso(ctx) {
     const resultado = await obterResultadoPorConcurso(numeroConcurso);
     if (!resultado) {
         await deleteAllMessages(ctx); // Apagar todas as mensagens anteriores
-        await enviarMensagemComLogo(ctx, 'Resultado não encontrado para o concurso informado.\nDigite o numero de um concurso válido.');
+        await enviarMensagemComLogo(ctx, '❌ Resultado não encontrado para o concurso informado.\nDigite o número de um concurso válido.');
         return;
     }
 
@@ -93,7 +95,7 @@ async function obterResultadoPorConcurso(concurso) {
         const response = await axios.get(`https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena/${concurso}`);
         return response.data;
     } catch (error) {
-        console.error(`Erro ao obter resultados do concurso ${concurso}:`, error);
+        console.error(`❌ Erro ao obter resultados do concurso ${concurso}:`, error);
         return null;
     }
 }
@@ -111,7 +113,7 @@ function formatarResultado(resultado) {
     const { numero, dataApuracao, listaDezenas } = resultado;
     const numerosSorteados = listaDezenas.join(' ');
 
-    return `Concurso: ${numero}\nData: ${dataApuracao}\nNúmeros sorteados: \n${numerosSorteados}`;
+    return `📅 Concurso: ${numero}\n🗓️ Data: ${dataApuracao}\n🎰 Números sorteados: \n${numerosSorteados}`;
 }
 
 async function enviarMensagemComLogo(ctx, mensagem, buttons) {
@@ -128,7 +130,7 @@ async function enviarMensagemComLogo(ctx, mensagem, buttons) {
     if (message) {
         ctx.session.mensagensIDS.push(message.message_id);
         ctx.session.mainMessageId = message.message_id;
-        console.log(`Mensagem enviada com logo: ${message.message_id}`);
+        console.log(`📤 Mensagem enviada com logo: ${message.message_id}`);
     }
 }
 
@@ -136,7 +138,7 @@ async function editarMensagem(ctx, mensagem) {
     try {
         const mainMessageId = ctx.session.mainMessageId;
         if (!mainMessageId) {
-            console.error('Main message ID not found');
+            console.error('❌ Main message ID não encontrado');
             return;
         }
 
@@ -152,17 +154,17 @@ async function editarMensagem(ctx, mensagem) {
             }
         );
     } catch (error) {
-        console.error('Erro ao editar a mensagem:', error);
+        console.error('❌ Erro ao editar a mensagem:', error);
     }
 }
 
 async function deleteMessageSafely(ctx, messageId) {
     try {
         await ctx.deleteMessage(messageId);
-        console.log(`Mensagem do usuário excluída: ${messageId}`);
+        console.log(`🗑️ Mensagem do usuário excluída: ${messageId}`);
     } catch (error) {
         if (error.code !== 400 && error.code !== 404) {
-            console.error(`Erro ao excluir a mensagem do usuário com ID ${messageId}:`, error);
+            console.error(`❌ Erro ao excluir a mensagem do usuário com ID ${messageId}:`, error);
         }
     }
 }

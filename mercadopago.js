@@ -1,14 +1,16 @@
+// mercadopago.js
+
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const xlsx = require('xlsx');
-const lockfile = require('proper-lockfile');
 const path = require('path');
 const { enviarMensagemConfirmacaoPagamento } = require('./mensagensAssincronas');
+const { waitForLock } = require('./utils');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 
 app.use(bodyParser.json());
 
@@ -25,7 +27,7 @@ async function atualizarPagamento(idPagamento) {
 
     let release;
     try {
-        release = await lockfile.lock(fileName);
+        release = await waitForLock(fileName);
 
         const workbook = xlsx.readFile(fileName);
         const worksheet = workbook.Sheets['NumerosSelecionadosAcumulado6'];

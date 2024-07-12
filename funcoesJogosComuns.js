@@ -3,12 +3,22 @@ const axios = require('axios');
 const fs = require('fs');
 const xlsx = require('xlsx');
 const path = require('path');
+const { waitForLock } = require('./utils');
 
+/**
+ * Função para validar números de telefone.
+ * @param {string} phoneNumber - Número de telefone a ser validado.
+ * @returns {boolean} - Retorna verdadeiro se o número for válido, caso contrário, falso.
+ */
 function isValidPhoneNumber(phoneNumber) {
     const regex = /^\d{2}\s?\d{9,10}$/;
     return regex.test(phoneNumber);
 }
 
+/**
+ * Função para gerar um QR Code Pix.
+ * @returns {Object|null} - Retorna um objeto com os dados do QR Code ou null em caso de erro.
+ */
 async function gerarQRCodePix() {
     try {
         const expire = new Date();
@@ -27,7 +37,7 @@ async function gerarQRCodePix() {
             }
         };
 
-        const accessToken = process.env.ACCESS_TOKEN; // Certifique-se de que o nome da variável de ambiente está correto
+        const accessToken = process.env.ACCESS_TOKEN;
 
         const response = await axios.post('https://api.mercadopago.com/v1/payments', paymentData, {
             headers: {
@@ -52,6 +62,12 @@ async function gerarQRCodePix() {
     }
 }
 
+/**
+ * Função para salvar números selecionados na planilha do Acumulado 6.
+ * @param {Array} selectedNumbers - Números selecionados pelo usuário.
+ * @param {Object} ctx - Contexto do Telegram.
+ * @param {string} qrCode - QR Code gerado.
+ */
 async function salvarNumerosSelecionadosAcumulado6(selectedNumbers, ctx, qrCode) {
     const fileName = 'NumerosSelecionadosAcumulado6.xlsx';
     const filePath = path.join(__dirname, fileName);
@@ -84,19 +100,63 @@ async function salvarNumerosSelecionadosAcumulado6(selectedNumbers, ctx, qrCode)
         qr_code: qrCode
     }];
 
-    if (fs.existsSync(filePath)) {
-        const workbook = xlsx.readFile(filePath);
-        const worksheet = workbook.Sheets['NumerosSelecionadosAcumulado6'];
-        xlsx.utils.sheet_add_json(worksheet, data, { origin: -1, skipHeader: true });
+    let release;
+    try {
+        const dirPath = path.dirname(filePath);
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        let workbook;
+        let worksheet;
+
+        if (!fs.existsSync(filePath)) {
+            console.log('Arquivo NumerosSelecionadosAcumulado6.xlsx não encontrado. Criando novo workbook...');
+            worksheet = xlsx.utils.json_to_sheet(data);
+            workbook = xlsx.utils.book_new();
+            xlsx.utils.book_append_sheet(workbook, worksheet, 'NumerosSelecionadosAcumulado6');
+            xlsx.writeFile(workbook, filePath);
+        }
+
+        release = await waitForLock(filePath);
+
+        if (workbook == null) {
+            workbook = xlsx.readFile(filePath);
+            worksheet = workbook.Sheets['NumerosSelecionadosAcumulado6'];
+            xlsx.utils.sheet_add_json(worksheet, data, { origin: -1, skipHeader: true });
+        }
+
+        // Obter todos os dados da planilha incluindo o cabeçalho
+        const allData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+
+        // Ordenar os dados em ordem alfabética pelo nome, excluindo o cabeçalho
+        const header = allData[0];
+        const body = allData.slice(1).sort((a, b) => a[0].localeCompare(b[0]));
+
+        // Combinar o cabeçalho com os dados ordenados
+        const sortedData = [header, ...body];
+
+        // Atualizar a planilha com os dados ordenados
+        const newWorksheet = xlsx.utils.aoa_to_sheet(sortedData);
+        workbook.Sheets['NumerosSelecionadosAcumulado6'] = newWorksheet;
+
         xlsx.writeFile(workbook, filePath);
-    } else {
-        const worksheet = xlsx.utils.json_to_sheet(data);
-        const workbook = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(workbook, worksheet, 'NumerosSelecionadosAcumulado6');
-        xlsx.writeFile(workbook, filePath);
+    } catch (error) {
+        console.error('Erro ao salvar números selecionados:', error);
+        throw error; // Lançar erro para ser capturado na chamada
+    } finally {
+        if (release) {
+            await release();
+        }
     }
 }
 
+/**
+ * Função para inserir ID de pagamento na planilha.
+ * @param {string} idPagamento - ID do pagamento a ser inserido.
+ * @param {string} planilhaNome - Nome do arquivo da planilha.
+ * @returns {boolean} - Retorna verdadeiro se a inserção for bem-sucedida, caso contrário, falso.
+ */
 async function inserirIDPagamentoNaPlanilha(idPagamento, planilhaNome) {
     const filePath = path.join(__dirname, planilhaNome);
     if (!fs.existsSync(filePath)) {
@@ -123,6 +183,11 @@ async function inserirIDPagamentoNaPlanilha(idPagamento, planilhaNome) {
     return false;
 }
 
+/**
+ * Função para excluir o teclado numérico.
+ * @param {Object} ctx - Contexto do Telegram.
+ * @param {number} messageId - ID da mensagem do teclado numérico.
+ */
 async function deleteNumericKeyboard(ctx, messageId) {
     try {
         if (messageId) {
@@ -133,6 +198,12 @@ async function deleteNumericKeyboard(ctx, messageId) {
     }
 }
 
+/**
+ * Função para criar um teclado numérico.
+ * @param {Object} ctx - Contexto do Telegram.
+ * @param {Array} selectedNumbers - Números selecionados pelo usuário.
+ * @returns {Array} - Retorna a estrutura do teclado numérico.
+ */
 function createNumericKeyboard(ctx, selectedNumbers) {
     const keyboard = [];
     let row = [];
@@ -149,6 +220,10 @@ function createNumericKeyboard(ctx, selectedNumbers) {
     return keyboard;
 }
 
+/**
+ * Função para excluir todas as mensagens do contexto do Telegram.
+ * @param {Object} ctx - Contexto do Telegram.
+ */
 async function deleteAllMessages(ctx) {
     if (ctx.session && ctx.session.mensagensIDS) {
         for (let messageId of ctx.session.mensagensIDS) {
@@ -162,6 +237,7 @@ async function deleteAllMessages(ctx) {
     }
 }
 
+// Exporta as funções necessárias
 module.exports = {
     isValidPhoneNumber,
     gerarQRCodePix,
